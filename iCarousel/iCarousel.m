@@ -184,7 +184,8 @@
             float x = (clampedOffset * 0.5 * tilt + offset * spacing) * itemWidth;
             float z = fabs(clampedOffset) * -itemWidth * 0.5;
             transform = CATransform3DTranslate(transform, x, 0, z);
-            return CATransform3DRotate(transform, -clampedOffset * M_PI_2 * tilt, 0, 1, 0);
+            transform =  CATransform3DRotate(transform, -clampedOffset * M_PI_2 * tilt, 0, 1, 0);
+            return transform;
         }
         case iCarouselTypeCustom:
         default:
@@ -230,6 +231,7 @@
     }
     
     //transform view
+    [view.superview.layer setBorderWidth:2.0];
     view.superview.layer.transform = [self transformForItemView:view withOffset:offset];
 }
 

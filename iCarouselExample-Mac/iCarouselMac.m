@@ -75,6 +75,8 @@
     contentView = [[NSView alloc] initWithFrame:self.bounds];
     [contentView setWantsLayer:YES];
     contentView.layer.masksToBounds = NO;
+    //    [contentView.layer setBackgroundColor:CGColorGetConstantColor(kCGColorBlack)];
+    
     [self addSubview:contentView];
     
     //    UIPanGestureRecognizer *panGesture = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(didPan:)];
@@ -144,15 +146,14 @@
     //set up base transform
     CATransform3D transform = CATransform3DIdentity;
     transform.m34 = perspective;
+    //transform = CATransform3DTranslate(transform, -offset * itemWidth, 0, 0);
     
     //perform transform
     switch (type)
     {
         case iCarouselTypeLinear:
         {
-            NSLog(@"translating for offset: %f", offset);
-            return transform;
-//            return CATransform3DTranslate(transform, offset * itemWidth, 0, 0);
+            return CATransform3DTranslate(transform, offset * itemWidth, 0, 0);
         }
         case iCarouselTypeRotary:
         case iCarouselTypeInvertedRotary:
@@ -194,10 +195,22 @@
             float spacing = 0.25;
             
             float clampedOffset = fmax(-1.0, fmin(1.0, offset));
-            float x = (clampedOffset * 0.5 * tilt /*+ offset * spacing*/) * itemWidth;
+            float x = (clampedOffset * 0.5 * tilt + offset * spacing) * itemWidth;
             float z = fabs(clampedOffset) * -itemWidth * 0.5;
+            
             transform = CATransform3DTranslate(transform, x, 0, z);
-            return CATransform3DRotate(transform, -clampedOffset * M_PI_2 * tilt, 0, 1, 0);
+            
+            
+            
+            //           transform = CATransform3DTranslate(transform, view.layer.bounds.size.width/2*.5, 0, 0);
+            transform =  CATransform3DRotate(transform, -clampedOffset * M_PI_2 * tilt, 0, 1, 0);
+            
+            //            transform = CATransform3DTranslate(transform, -view.layer.bounds.size.width/2, 0, 0);
+            
+            //            transform = CATransform3DTranslate(transform, 0, -view.layer.bounds.size.height/2, 0);
+            
+            
+            return transform;
         }
         case iCarouselTypeCustom:
         default:
@@ -210,14 +223,14 @@
 - (NSView *)containView:(NSView *)view
 {
     NSView *containerView = [[[NSView alloc] initWithFrame:view.frame] autorelease];
-
+    
     
     // guess i don't need this since the contentView has a layer now
     // gah, cannot get rid of border
-//   [containerView setWantsLayer:YES];
-//    containerView.layer.borderWidth = 0.0;
-//    [view setWantsLayer:YES];
-//    view.layer.borderWidth = 0.0;
+    //   [containerView setWantsLayer:YES];
+    //    containerView.layer.borderWidth = 0.0;
+    //    [view setWantsLayer:YES];
+    //    view.layer.borderWidth = 0.0;
     
     [containerView addSubview:view];
     
@@ -232,7 +245,8 @@
 
 - (void)transformItemView:(NSView *)view atIndex:(NSInteger)index
 {
-    //NSLog(@"self bounds: %@", NSStringFromRect(self.bounds));
+    // NSLog(@"transforming item view at index: %ld", (long) index);
+    NSLog(@"self bounds: %@", NSStringFromRect(self.bounds));
     //NSLog(@"view bounds: %@", NSStringFromRect(view.bounds));
     
     view.superview.bounds = view.bounds;
@@ -245,12 +259,10 @@
     
     //NSLog(@"view frame: %@", NSStringFromRect(view.frame));
     
-    view.superview.frame = NSMakeRect((self.bounds.size.width-view.superview.frame.size.width)/2.0,
-                                      (self.bounds.size.height-view.superview.frame.size.height)/2.0,
-                                      view.superview.frame.size.width,
-                                      view.superview.frame.size.height);
+    // anchor point is in center of view.superview
+    [view.superview setFrameOrigin:NSMakePoint((self.bounds.size.width)/2.0, (self.bounds.size.height)/2.0)];
     
-    //NSLog(@"superview frame: %@", NSStringFromRect(view.superview.frame));
+    NSLog(@"superview frame: %@", NSStringFromRect(view.superview.frame));
     
     //calculate relative position
     float itemOffset = scrollOffset / itemWidth;
@@ -268,9 +280,22 @@
     }
     
     //transform view
-    view.superview.frame = NSMakeRect(view.superview.frame.origin.x + offset*itemWidth, view.superview.frame.origin.y, view.superview.frame.size.width, view.superview.frame.size.height);
-    NSLog(@"for index %lx, frame: %@", (long) index, NSStringFromRect(view.superview.frame));
+    //view.superview.frame = NSMakeRect(view.superview.frame.origin.x + offset*itemWidth, view.superview.frame.origin.y, view.superview.frame.size.width, view.superview.frame.size.height);
+    //    NSLog(@"for index %lx, frame: %@", (long) index, NSStringFromRect(view.superview.frame));
+    view.superview.layer.anchorPoint = CGPointMake(.5, .5);
+    
+    //    NSLog(@"super bounds: %@", NSStringFromRect(view.superview.layer.bounds));
+    //    NSLog(@"super frame: %@", NSStringFromRect(view.superview.layer.frame));
+    //    
+    //    NSLog(@"bounds: %@", NSStringFromRect(view.layer.bounds));
+    //    NSLog(@"frame: %@", NSStringFromRect(view.layer.frame));
+    //    
+    //    NSLog(@"anchor: %@", NSStringFromPoint(NSPointFromCGPoint(view.layer.anchorPoint)));
+    
     view.superview.layer.transform = [self transformForItemView:view withOffset:offset];
+    [view.superview.layer removeAllAnimations];  // transform and transition
+    
+    //    NSLog(@"animations: %@", [view.superview.layer animationKeys]);
 }
 
 - (void) resizeSubviewsWithOldSize:(NSSize)oldSize
@@ -288,14 +313,15 @@
 
 - (void)transformItemViews
 {
+    //NSLog(@"transform item views, scroll offset: %f", scrollOffset);
     //lay out items
-	for (NSUInteger i = 0; i < numberOfItems; i++)
+    for (NSUInteger i = 0; i < numberOfItems; i++)
     {
-		NSView *view = [itemViews objectAtIndex:i];
-		[self transformItemView:view atIndex:i];
-
-//        view.userInteractionEnabled = (i == self.currentItemIndex);
-	}
+        NSView *view = [itemViews objectAtIndex:i];
+        [self transformItemView:view atIndex:i];
+        
+        //        view.userInteractionEnabled = (i == self.currentItemIndex);
+    }
     
     //bring current view to front
     if ([itemViews count])
@@ -306,14 +332,14 @@
     //lay out placeholders
     for (NSInteger i = 0; i < numberOfPlaceholders; i++)
     {
-		NSView *view = [placeholderViews objectAtIndex:i];
-		[self transformItemView:view atIndex:-(i+1)];
-	}
+        NSView *view = [placeholderViews objectAtIndex:i];
+        [self transformItemView:view atIndex:-(i+1)];
+    }
     for (NSInteger i = 0; i < numberOfPlaceholders; i++)
     {
-		NSView *view = [placeholderViews objectAtIndex:i + numberOfPlaceholders];
-		[self transformItemView:view atIndex:i + numberOfItems];
-	}
+        NSView *view = [placeholderViews objectAtIndex:i + numberOfPlaceholders];
+        [self transformItemView:view atIndex:i + numberOfItems];
+    }
 }
 
 - (void)layOutItemViews
@@ -322,10 +348,10 @@
     float prevItemWidth = itemWidth;
     
     //set scrollview size
-	if ([delegate respondsToSelector:@selector(carouselItemWidth:)])
+    if ([delegate respondsToSelector:@selector(carouselItemWidth:)])
     {
-		itemWidth = [delegate carouselItemWidth:self];
-	}
+        itemWidth = [delegate carouselItemWidth:self];
+    }
     
     
     // on mac this never gets initialized, so is nan to beginwith
@@ -339,39 +365,39 @@
     
     //transform views
     [self transformItemViews];
-	
+    
     //call delegate
-	if (prevItemWidth != itemWidth && [delegate respondsToSelector:@selector(carouselDidScroll:)])
+    if (prevItemWidth != itemWidth && [delegate respondsToSelector:@selector(carouselDidScroll:)])
     {
-		[delegate carouselDidScroll:self];
-	}
+        [delegate carouselDidScroll:self];
+    }
 }
 
 - (void)reloadData
 {
-	//remove old views
-	for (NSView *view in itemViews)
+    //remove old views
+    for (NSView *view in itemViews)
     {
-		[view.superview removeFromSuperview];
-	}
+        [view.superview removeFromSuperview];
+    }
     for (NSView *view in placeholderViews)
     {
-		[view.superview removeFromSuperview];
-	}
-	
-	//load new views
-	numberOfItems = [dataSource numberOfItemsInCarousel:self];
-	self.itemViews = [NSMutableArray arrayWithCapacity:numberOfItems];
-	for (NSUInteger i = 0; i < numberOfItems; i++)
+        [view.superview removeFromSuperview];
+    }
+    
+    //load new views
+    numberOfItems = [dataSource numberOfItemsInCarousel:self];
+    self.itemViews = [NSMutableArray arrayWithCapacity:numberOfItems];
+    for (NSUInteger i = 0; i < numberOfItems; i++)
     {
         NSView *view = [dataSource carousel:self viewForItemAtIndex:i];
         if (view == nil)
         {
-			view = [[[NSView alloc] init] autorelease];
+            view = [[[NSView alloc] init] autorelease];
         }
-		[(NSMutableArray *)itemViews addObject:view];
+        [(NSMutableArray *)itemViews addObject:view];
         [contentView addSubview:[self containView:view]];
-	}
+    }
     
     //load placeholders
     if ([dataSource respondsToSelector:@selector(numberOfPlaceholdersInCarousel:)])
@@ -418,7 +444,7 @@
 
 - (void)scrollToItemAtIndex:(NSUInteger)index animated:(BOOL)animated
 {	
-	index = [self clampedIndex:index];
+    index = [self clampedIndex:index];
     previousItemIndex = self.currentItemIndex;
     if ([self shouldWrap] && previousItemIndex == 0 && index == numberOfItems - 1)
     {
@@ -456,7 +482,7 @@
         
         //        itemView.superview.alpha = 0.0;
         itemView.superview.layer.opacity = 0.0;
-//        [itemView.superview setHidden:YES];
+        //        [itemView.superview setHidden:YES];
         
         //[NSView commitAnimations];
         [itemView.superview performSelector:@selector(removeFromSuperview) withObject:nil afterDelay:0.1];
@@ -472,12 +498,12 @@
     
     [(NSMutableArray *)itemViews removeObjectAtIndex:index];
     numberOfItems --;
-	[self transformItemViews];
+    [self transformItemViews];
     
-//    if (animated)
-//    {
-//        [NSView commitAnimations];
-//    }
+    //    if (animated)
+    //    {
+    //        [NSView commitAnimations];
+    //    }
 }
 
 - (void)insertItemAtIndex:(NSUInteger)index animated:(BOOL)animated
@@ -489,7 +515,7 @@
     [contentView addSubview:[self containView:itemView]];
     [self transformItemView:itemView atIndex:index];
     
-//    [itemView.superview setHidden:YES];
+    //    [itemView.superview setHidden:YES];
     itemView.superview.layer.opacity = 0.0;
     //itemView.superview.alpha = 0.0;
     
@@ -506,7 +532,7 @@
         //        [NSView setAnimationDelay:0.3];
         //        [NSView setAnimationDuration:0.1];
         
-//        [itemView.superview setHidden:NO];
+        //        [itemView.superview setHidden:NO];
         itemView.superview.layer.opacity = 1.0;
         //        itemView.superview.alpha = 1.0;
         
@@ -515,9 +541,9 @@
     else
     {
         [self transformItemViews]; 
-//        [itemView.superview setHidden:NO];
+        //        [itemView.superview setHidden:NO];
         itemView.superview.layer.opacity = 1.0;
-//        itemView.superview.alpha = 1.0;
+        //        itemView.superview.alpha = 1.0;
     }
 }
 
@@ -547,17 +573,17 @@
     [self transformItemViews];
     if ([delegate respondsToSelector:@selector(carouselDidScroll:)])
     {
-		[delegate carouselDidScroll:self];
-	}
+        [delegate carouselDidScroll:self];
+    }
     NSInteger currentItemIndex = self.currentItemIndex;
     if (previousItemIndex != currentItemIndex && [delegate respondsToSelector:@selector(carouselCurrentItemIndexUpdated:)])
     {
-		previousItemIndex = currentItemIndex;
+        previousItemIndex = currentItemIndex;
         if (currentItemIndex > -1)
         {
             [delegate carouselCurrentItemIndexUpdated:self];
         }
-	}
+    }
 }
 
 - (void)step
@@ -623,7 +649,7 @@
         
         NSTimeInterval thisTime = [theEvent timestamp];
         currentVelocity = (translation / (thisTime - lastTime)) * factor;
-        NSLog(@"velocity: %f", currentVelocity);
+        //NSLog(@"velocity: %f", currentVelocity);
         lastTime = thisTime;
         scrollOffset -= translation * factor;
         [self didScroll];
@@ -694,9 +720,9 @@
 {	
     [timer invalidate];
     [contentView release];
-	[itemViews release];
+    [itemViews release];
     [placeholderViews release];
-	[super dealloc];
+    [super dealloc];
 }
 
 @end

@@ -17,7 +17,7 @@
 
 @property (nonatomic, retain) IBOutlet iCarouselMac *carousel;
 
-- (IBAction)switchCarouselType;
+- (IBAction)switchCarouselType:(id)sender;
 - (IBAction)toggleWrap;
 
 @end

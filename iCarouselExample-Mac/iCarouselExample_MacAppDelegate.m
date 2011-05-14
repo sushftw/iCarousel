@@ -19,6 +19,10 @@
     [window setContentView:self.viewController.view];
 }
 
+- (BOOL) applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender
+{
+    return YES;
+}
 
 - (void) dealloc
 {

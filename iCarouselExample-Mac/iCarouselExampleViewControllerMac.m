@@ -32,11 +32,41 @@
 {
     wrap = YES;
     [super setView:view];
-    carousel.type = iCarouselTypeLinear;
+    carousel.type = iCarouselTypeCoverFlow;
 }
 
-- (IBAction)switchCarouselType
+- (IBAction)switchCarouselType:(id)sender
 {
+    NSString* title = [[sender title] lowercaseString];
+    if ([title isEqual:@"linear"]) 
+    {
+        carousel.type = iCarouselTypeLinear;
+    }
+    else if ([title isEqual:@"coverflow"])
+    {
+        carousel.type = iCarouselTypeCoverFlow;
+    }
+    else if ([title isEqual:@"rotary"])
+    {
+        carousel.type = iCarouselTypeRotary;
+    }
+    else if ([title isEqual:@"inverted rotary"])
+    {
+        carousel.type = iCarouselTypeInvertedRotary;
+    }
+    else if ([title isEqual:@"cylinder"])
+    {
+        carousel.type = iCarouselTypeCylinder;
+    }
+    else if ([title isEqual:@"inverted cylinder"])
+    {
+        carousel.type = iCarouselTypeInvertedCylinder;
+    }
+    else if ([title isEqual:@"custom"])
+    {
+        carousel.type = iCarouselTypeCustom;
+    }
+    
 //    UIActionSheet *sheet = [[UIActionSheet alloc] initWithTitle:@"Select Carousel Type"
 //                                                       delegate:self
 //                                              cancelButtonTitle:nil
