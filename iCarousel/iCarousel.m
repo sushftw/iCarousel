@@ -344,7 +344,11 @@
 
 - (NSInteger)clampedIndex:(NSInteger)index
 {
-    if ([self shouldWrap])
+    if (numberOfItems == 0)
+    {
+        return 0;
+    }
+    else if ([self shouldWrap])
     {
         return (index + numberOfItems) % numberOfItems;
     }
@@ -376,7 +380,7 @@
     if (animated)
     {
         scrolling = YES;
-        startTime = [[NSProcessInfo processInfo] systemUptime];
+        startTime = CACurrentMediaTime();
         startOffset = scrollOffset;
         endOffset = itemWidth * index;
     }
@@ -411,6 +415,7 @@
     
     [(NSMutableArray *)itemViews removeObjectAtIndex:index];
     numberOfItems --;
+    [self scrollToItemAtIndex:self.currentItemIndex animated:NO];
 	[self transformItemViews];
     
     if (animated)
@@ -492,7 +497,7 @@
 
 - (void)step
 {
-    NSTimeInterval currentTime = [[NSProcessInfo processInfo] systemUptime];
+    NSTimeInterval currentTime = CACurrentMediaTime();
     NSTimeInterval deltaTime = currentTime - previousTime;
     previousTime = currentTime;
     
