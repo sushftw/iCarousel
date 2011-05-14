@@ -35,7 +35,7 @@
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    carousel.type = iCarouselTypeCoverFlow;
+    carousel.type = iCarouselTypeLinear;
     wrap = YES;
 }
 
@@ -89,7 +89,7 @@
 
 - (NSUInteger)numberOfItemsInCarousel:(iCarousel *)carousel
 {
-    return 12;
+    return 10;
 }
 
 - (UIView *)carousel:(iCarousel *)carousel viewForItemAtIndex:(NSUInteger)index
