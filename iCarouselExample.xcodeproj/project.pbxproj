@@ -32,7 +32,6 @@
 		EB67F1C5137CB57A00F4D74D /* iCarouselMac.m in Sources */ = {isa = PBXBuildFile; fileRef = EB67F1C4137CB57A00F4D74D /* iCarouselMac.m */; };
 		EB67F1C6137CC5F400F4D74D /* page.png in Resources */ = {isa = PBXBuildFile; fileRef = 01308DC2134930F300453707 /* page.png */; };
 		EB67F1C7137CC5F400F4D74D /* background.png in Resources */ = {isa = PBXBuildFile; fileRef = 01308DC1134930F300453707 /* background.png */; };
-		EB67F1D2137DB83000F4D74D /* MyScroller.m in Sources */ = {isa = PBXBuildFile; fileRef = EB67F1D1137DB83000F4D74D /* MyScroller.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -74,8 +73,6 @@
 		EB67F1C0137CB45300F4D74D /* iCarouselExampleViewControllerMac.xib */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.xib; path = iCarouselExampleViewControllerMac.xib; sourceTree = "<group>"; };
 		EB67F1C3137CB57A00F4D74D /* iCarouselMac.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = iCarouselMac.h; sourceTree = "<group>"; };
 		EB67F1C4137CB57A00F4D74D /* iCarouselMac.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = iCarouselMac.m; sourceTree = "<group>"; };
-		EB67F1D0137DB83000F4D74D /* MyScroller.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = MyScroller.h; sourceTree = "<group>"; };
-		EB67F1D1137DB83000F4D74D /* MyScroller.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = MyScroller.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -202,8 +199,6 @@
 				EB67F1C0137CB45300F4D74D /* iCarouselExampleViewControllerMac.xib */,
 				EB67F1C3137CB57A00F4D74D /* iCarouselMac.h */,
 				EB67F1C4137CB57A00F4D74D /* iCarouselMac.m */,
-				EB67F1D0137DB83000F4D74D /* MyScroller.h */,
-				EB67F1D1137DB83000F4D74D /* MyScroller.m */,
 			);
 			path = "iCarouselExample-Mac";
 			sourceTree = "<group>";
@@ -328,7 +323,6 @@
 				EB67F1B4137CB1ED00F4D74D /* iCarouselExample_MacAppDelegate.m in Sources */,
 				EB67F1C1137CB45300F4D74D /* iCarouselExampleViewControllerMac.m in Sources */,
 				EB67F1C5137CB57A00F4D74D /* iCarouselMac.m in Sources */,
-				EB67F1D2137DB83000F4D74D /* MyScroller.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -519,6 +513,7 @@
 				EB67F1B9137CB1ED00F4D74D /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
