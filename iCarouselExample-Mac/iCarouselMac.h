@@ -27,6 +27,29 @@ iCarouselType;
 
 @interface iCarouselMac : NSView
 {
+    id<iCarouselMacDelegate> delegate;
+    id<iCarouselMacDataSource> dataSource;
+    iCarouselType type;
+    float perspective;
+    NSInteger numberOfItems;
+    NSInteger numberOfPlaceholders;
+    
+    NSView* contentView;
+    NSArray* itemViews;
+    NSArray* placeholderViews;
+    NSInteger previousItemIndex;
+
+    float currentVelocity;
+    NSTimer* timer;
+    NSTimeInterval previousTime;
+    BOOL decelerating;
+    BOOL scrollEnabled;
+    float decelerationRate;
+    BOOL bounces;
+    NSTimeInterval startTime;
+    float previousTranslation;
+    
+    
     float itemWidth;
     float scrollOffset;
     float startOffset;

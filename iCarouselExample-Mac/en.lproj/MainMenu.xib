@@ -349,7 +349,7 @@
 									<reference key="NSOnImage" ref="35465992"/>
 									<reference key="NSMixedImage" ref="502551668"/>
 								</object>
-								<object class="NSMenuItem" id="626501708">
+								<object class="NSMenuItem" id="636539560">
 									<reference key="NSMenu" ref="466310130"/>
 									<bool key="NSIsDisabled">YES</bool>
 									<bool key="NSIsSeparator">YES</bool>
@@ -359,7 +359,7 @@
 									<reference key="NSOnImage" ref="35465992"/>
 									<reference key="NSMixedImage" ref="502551668"/>
 								</object>
-								<object class="NSMenuItem" id="132920193">
+								<object class="NSMenuItem" id="1067131812">
 									<reference key="NSMenu" ref="466310130"/>
 									<string key="NSTitle">Linear</string>
 									<string key="NSKeyEquiv">1</string>
@@ -368,7 +368,7 @@
 									<reference key="NSOnImage" ref="35465992"/>
 									<reference key="NSMixedImage" ref="502551668"/>
 								</object>
-								<object class="NSMenuItem" id="271033120">
+								<object class="NSMenuItem" id="801687393">
 									<reference key="NSMenu" ref="466310130"/>
 									<bool key="NSIsAlternate">YES</bool>
 									<string key="NSTitle">CoverFlow</string>
@@ -378,7 +378,7 @@
 									<reference key="NSOnImage" ref="35465992"/>
 									<reference key="NSMixedImage" ref="502551668"/>
 								</object>
-								<object class="NSMenuItem" id="481881295">
+								<object class="NSMenuItem" id="437683109">
 									<reference key="NSMenu" ref="466310130"/>
 									<bool key="NSIsAlternate">YES</bool>
 									<string key="NSTitle">Rotary</string>
@@ -388,7 +388,7 @@
 									<reference key="NSOnImage" ref="35465992"/>
 									<reference key="NSMixedImage" ref="502551668"/>
 								</object>
-								<object class="NSMenuItem" id="373913194">
+								<object class="NSMenuItem" id="845582033">
 									<reference key="NSMenu" ref="466310130"/>
 									<bool key="NSIsAlternate">YES</bool>
 									<string key="NSTitle">Inverted Rotary</string>
@@ -398,7 +398,7 @@
 									<reference key="NSOnImage" ref="35465992"/>
 									<reference key="NSMixedImage" ref="502551668"/>
 								</object>
-								<object class="NSMenuItem" id="910076382">
+								<object class="NSMenuItem" id="255993151">
 									<reference key="NSMenu" ref="466310130"/>
 									<bool key="NSIsAlternate">YES</bool>
 									<string key="NSTitle">Cylinder</string>
@@ -408,7 +408,7 @@
 									<reference key="NSOnImage" ref="35465992"/>
 									<reference key="NSMixedImage" ref="502551668"/>
 								</object>
-								<object class="NSMenuItem" id="131676541">
+								<object class="NSMenuItem" id="786354166">
 									<reference key="NSMenu" ref="466310130"/>
 									<bool key="NSIsAlternate">YES</bool>
 									<string key="NSTitle">Inverted Cylinder</string>
@@ -418,7 +418,7 @@
 									<reference key="NSOnImage" ref="35465992"/>
 									<reference key="NSMixedImage" ref="502551668"/>
 								</object>
-								<object class="NSMenuItem" id="921330238">
+								<object class="NSMenuItem" id="428289398">
 									<reference key="NSMenu" ref="466310130"/>
 									<bool key="NSIsAlternate">YES</bool>
 									<string key="NSTitle">Custom</string>
@@ -517,7 +517,7 @@
 			<object class="NSWindowTemplate" id="972006081">
 				<int key="NSWindowStyleMask">15</int>
 				<int key="NSWindowBacking">2</int>
-				<string key="NSWindowRect">{{335, 390}, {800, 600}}</string>
+				<string key="NSWindowRect">{{335, 390}, {400, 300}}</string>
 				<int key="NSWTFlags">1954021376</int>
 				<string key="NSWindowTitle">iCarouselExample-Mac</string>
 				<string key="NSWindowClass">NSWindow</string>
@@ -525,7 +525,7 @@
 				<object class="NSView" key="NSWindowView" id="439893737">
 					<reference key="NSNextResponder"/>
 					<int key="NSvFlags">256</int>
-					<string key="NSFrame">{{7, 11}, {800, 600}}</string>
+					<string key="NSFrame">{{7, 11}, {400, 300}}</string>
 					<reference key="NSSuperview"/>
 					<reference key="NSWindow"/>
 					<reference key="NSNextKeyView"/>
@@ -734,7 +734,7 @@
 					<object class="IBActionConnection" key="connection">
 						<string key="label">switchCarouselType</string>
 						<reference key="source" ref="958254902"/>
-						<reference key="destination" ref="132920193"/>
+						<reference key="destination" ref="1067131812"/>
 					</object>
 					<int key="connectionID">537</int>
 				</object>
@@ -742,7 +742,7 @@
 					<object class="IBActionConnection" key="connection">
 						<string key="label">switchCarouselType:</string>
 						<reference key="source" ref="958254902"/>
-						<reference key="destination" ref="271033120"/>
+						<reference key="destination" ref="801687393"/>
 					</object>
 					<int key="connectionID">539</int>
 				</object>
@@ -750,7 +750,7 @@
 					<object class="IBActionConnection" key="connection">
 						<string key="label">switchCarouselType:</string>
 						<reference key="source" ref="958254902"/>
-						<reference key="destination" ref="481881295"/>
+						<reference key="destination" ref="437683109"/>
 					</object>
 					<int key="connectionID">542</int>
 				</object>
@@ -758,7 +758,7 @@
 					<object class="IBActionConnection" key="connection">
 						<string key="label">switchCarouselType:</string>
 						<reference key="source" ref="958254902"/>
-						<reference key="destination" ref="373913194"/>
+						<reference key="destination" ref="845582033"/>
 					</object>
 					<int key="connectionID">544</int>
 				</object>
@@ -766,7 +766,7 @@
 					<object class="IBActionConnection" key="connection">
 						<string key="label">switchCarouselType:</string>
 						<reference key="source" ref="958254902"/>
-						<reference key="destination" ref="910076382"/>
+						<reference key="destination" ref="255993151"/>
 					</object>
 					<int key="connectionID">546</int>
 				</object>
@@ -774,7 +774,7 @@
 					<object class="IBActionConnection" key="connection">
 						<string key="label">switchCarouselType:</string>
 						<reference key="source" ref="958254902"/>
-						<reference key="destination" ref="131676541"/>
+						<reference key="destination" ref="786354166"/>
 					</object>
 					<int key="connectionID">548</int>
 				</object>
@@ -782,7 +782,7 @@
 					<object class="IBActionConnection" key="connection">
 						<string key="label">switchCarouselType:</string>
 						<reference key="source" ref="958254902"/>
-						<reference key="destination" ref="921330238"/>
+						<reference key="destination" ref="428289398"/>
 					</object>
 					<int key="connectionID">550</int>
 				</object>
@@ -1077,14 +1077,14 @@
 							<bool key="EncodedWithXMLCoder">YES</bool>
 							<reference ref="102151532"/>
 							<reference ref="237841660"/>
-							<reference ref="271033120"/>
-							<reference ref="626501708"/>
-							<reference ref="921330238"/>
-							<reference ref="131676541"/>
-							<reference ref="910076382"/>
-							<reference ref="373913194"/>
-							<reference ref="481881295"/>
-							<reference ref="132920193"/>
+							<reference ref="801687393"/>
+							<reference ref="636539560"/>
+							<reference ref="428289398"/>
+							<reference ref="786354166"/>
+							<reference ref="255993151"/>
+							<reference ref="845582033"/>
+							<reference ref="437683109"/>
+							<reference ref="1067131812"/>
 						</object>
 						<reference key="parent" ref="586577488"/>
 					</object>
@@ -1153,43 +1153,43 @@
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">536</int>
-						<reference key="object" ref="132920193"/>
+						<reference key="object" ref="1067131812"/>
 						<reference key="parent" ref="466310130"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">538</int>
-						<reference key="object" ref="271033120"/>
+						<reference key="object" ref="801687393"/>
 						<reference key="parent" ref="466310130"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">540</int>
-						<reference key="object" ref="626501708"/>
+						<reference key="object" ref="636539560"/>
 						<reference key="parent" ref="466310130"/>
 						<string key="objectName">Menu Item - Separator</string>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">541</int>
-						<reference key="object" ref="481881295"/>
+						<reference key="object" ref="437683109"/>
 						<reference key="parent" ref="466310130"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">543</int>
-						<reference key="object" ref="373913194"/>
+						<reference key="object" ref="845582033"/>
 						<reference key="parent" ref="466310130"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">545</int>
-						<reference key="object" ref="910076382"/>
+						<reference key="object" ref="255993151"/>
 						<reference key="parent" ref="466310130"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">547</int>
-						<reference key="object" ref="131676541"/>
+						<reference key="object" ref="786354166"/>
 						<reference key="parent" ref="466310130"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">549</int>
-						<reference key="object" ref="921330238"/>
+						<reference key="object" ref="428289398"/>
 						<reference key="parent" ref="466310130"/>
 					</object>
 				</object>
