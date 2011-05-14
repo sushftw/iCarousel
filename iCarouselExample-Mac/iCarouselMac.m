@@ -151,7 +151,8 @@
         case iCarouselTypeLinear:
         {
             NSLog(@"translating for offset: %f", offset);
-            return CATransform3DTranslate(transform, offset * itemWidth, 0, 0);
+            return transform;
+//            return CATransform3DTranslate(transform, offset * itemWidth, 0, 0);
         }
         case iCarouselTypeRotary:
         case iCarouselTypeInvertedRotary:
@@ -193,7 +194,7 @@
             float spacing = 0.25;
             
             float clampedOffset = fmax(-1.0, fmin(1.0, offset));
-            float x = (clampedOffset * 0.5 * tilt + offset * spacing) * itemWidth;
+            float x = (clampedOffset * 0.5 * tilt /*+ offset * spacing*/) * itemWidth;
             float z = fabs(clampedOffset) * -itemWidth * 0.5;
             transform = CATransform3DTranslate(transform, x, 0, z);
             return CATransform3DRotate(transform, -clampedOffset * M_PI_2 * tilt, 0, 1, 0);
@@ -268,7 +269,8 @@
     
     //transform view
     view.superview.frame = NSMakeRect(view.superview.frame.origin.x + offset*itemWidth, view.superview.frame.origin.y, view.superview.frame.size.width, view.superview.frame.size.height);
-//    view.superview.layer.transform = [self transformForItemView:view withOffset:offset];
+    NSLog(@"for index %lx, frame: %@", (long) index, NSStringFromRect(view.superview.frame));
+    view.superview.layer.transform = [self transformForItemView:view withOffset:offset];
 }
 
 - (void) resizeSubviewsWithOldSize:(NSSize)oldSize
