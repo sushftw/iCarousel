@@ -33,6 +33,7 @@
     wrap = YES;
     [super setView:view];
     carousel.type = iCarouselTypeCoverFlow;
+    carousel.maxNumberOfItemsToShow = 10;
 }
 
 - (IBAction)switchCarouselType:(id)sender
@@ -103,7 +104,7 @@
 
 - (NSUInteger)numberOfItemsInCarousel:(iCarouselMac *)carousel
 {
-    return 12;
+    return 1200;
 }
 
 - (NSView *)carousel:(iCarouselMac *)carousel viewForItemAtIndex:(NSUInteger)index

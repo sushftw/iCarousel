@@ -33,10 +33,13 @@ iCarouselType;
     float perspective;
     NSInteger numberOfItems;
     NSInteger numberOfPlaceholders;
+    NSInteger maxNumberOfItemsToShow;
     
     NSView* contentView;
-    NSArray* itemViews;
-    NSArray* placeholderViews;
+    NSMutableDictionary* itemViews;
+    NSCache* itemViewCache;
+    NSInteger itemsShownIndex;
+    NSMutableArray* placeholderViews;
     NSInteger previousItemIndex;
 
     float currentVelocity;
@@ -46,6 +49,7 @@ iCarouselType;
     BOOL scrollEnabled;
     float decelerationRate;
     BOOL bounces;
+    BOOL isDragging;
     NSTimeInterval startTime;
     float previousTranslation;
     
@@ -68,9 +72,10 @@ iCarouselType;
 @property (nonatomic, assign) BOOL bounces;
 @property (nonatomic, readonly) NSInteger numberOfItems;
 @property (nonatomic, readonly) NSInteger numberOfPlaceholders;
+@property (nonatomic, assign) NSInteger maxNumberOfItemsToShow;
 @property (nonatomic, readonly) NSInteger currentItemIndex;
-@property (nonatomic, retain, readonly) NSArray *itemViews;
-@property (nonatomic, retain, readonly) NSArray *placeholderViews;
+@property (nonatomic, retain, readonly) NSMutableDictionary *itemViews;
+@property (nonatomic, retain, readonly) NSMutableArray *placeholderViews;
 @property (nonatomic, readonly) float itemWidth;
 
 - (void)scrollToItemAtIndex:(NSUInteger)index animated:(BOOL)animated;

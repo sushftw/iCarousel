@@ -12,8 +12,9 @@
 @interface iCarouselMac ()
 
 @property (nonatomic, retain) NSView *contentView;
-@property (nonatomic, retain) NSArray *itemViews;
-@property (nonatomic, retain) NSArray *placeholderViews;
+@property (nonatomic, retain) NSMutableArray *itemViews;
+@property (nonatomic, assign) NSInteger itemsShownIndex;
+@property (nonatomic, retain) NSMutableArray *placeholderViews;
 @property (nonatomic, assign) NSInteger previousItemIndex;
 @property (nonatomic, assign) float itemWidth;
 @property (nonatomic, assign) float scrollOffset;
@@ -27,6 +28,8 @@
 @property (nonatomic, assign) BOOL decelerating;
 @property (nonatomic, assign) float previousTranslation;
 
+
+- (void)syncViews;
 - (void)layOutItemViews;
 - (void)transformItemView:(NSView *)view atIndex:(NSInteger)index;
 - (BOOL)shouldWrap;
@@ -43,8 +46,10 @@
 @synthesize perspective;
 @synthesize numberOfItems;
 @synthesize numberOfPlaceholders;
+@synthesize maxNumberOfItemsToShow;
 @synthesize contentView;
 @synthesize itemViews;
+@synthesize itemsShownIndex;
 @synthesize placeholderViews;
 @synthesize previousItemIndex;
 @synthesize itemWidth;
@@ -71,6 +76,11 @@
     decelerationRate = 0.9;
     scrollEnabled = YES;
     bounces = YES;
+    
+    itemViews = [[NSMutableDictionary dictionary] retain];
+    itemViewCache = [[NSCache alloc] init];
+    maxNumberOfItemsToShow = INT_MAX;
+    itemsShownIndex = 0;
     
     contentView = [[NSView alloc] initWithFrame:self.bounds];
     [contentView setWantsLayer:YES];
@@ -109,13 +119,13 @@
 - (void)setDelegate:(id<iCarouselMacDelegate>)_delegate
 {
     delegate = _delegate;
-    [self layOutItemViews];
+    [self syncViews]; // wrap change can change cards that are shown
 }
 
 - (void)setType:(iCarouselType)_type
 {
     type = _type;
-    [self layOutItemViews];
+    [self syncViews]; // wrap change can change the cards that are shown
 }
 
 - (BOOL)shouldWrap
@@ -133,6 +143,18 @@
             return YES;
         default:
             return NO;
+    }
+}
+
+- (NSInteger)clampedIndex:(NSInteger)index
+{
+    if ([self shouldWrap])
+    {
+        return (index + numberOfItems) % numberOfItems;
+    }
+    else
+    {
+        return MIN(MAX(index, 0), numberOfItems - 1);
     }
 }
 
@@ -258,17 +280,18 @@
 - (void)transformItemViews
 {
     //lay out items
-    for (NSUInteger i = 0; i < numberOfItems; i++)
+    for (NSNumber* index in itemViews)
     {
-        NSView *view = [itemViews objectAtIndex:i];
-        [self transformItemView:view atIndex:i];
+        NSView *view = [itemViews objectForKey:index];
+        [self transformItemView:view atIndex:[index unsignedIntegerValue]];
     }
-    
+
+    // not sure this is necessary
     //bring current view to front
-    if ([itemViews count])
-    {
-        [contentView addSubview:[[itemViews objectAtIndex:self.currentItemIndex] superview]];
-    }
+//    if ([itemViews count])
+//    {
+//        [contentView addSubview:[itemViews objectForKey:[NSNumber numberWithUnsignedInteger:self.currentItemIndex]]];
+//    }
     
     //lay out placeholders
     for (NSInteger i = 0; i < numberOfPlaceholders; i++)
@@ -293,7 +316,10 @@
     {
         itemWidth = [delegate carouselItemWidth:self];
     }
-    
+    else
+    {
+        itemWidth = [([itemViews count]? [[itemViews allValues] lastObject]: self) bounds].size.width;
+    }
     
     // on mac this never gets initialized, so is nan to beginwith
     if (isnan(scrollOffset))
@@ -314,31 +340,56 @@
     }
 }
 
-- (void)reloadData
-{
-    //remove old views
-    for (NSView *view in itemViews)
-    {
+- (void) syncViews
+{        
+    // set of all pages needed in buffer
+	NSMutableSet *newViews = [NSMutableSet set];
+    NSInteger numberOfItemsToShow = MIN(self.numberOfItems, self.maxNumberOfItemsToShow);
+	for(NSInteger i = 0; i < numberOfItemsToShow; i++)
+	{
+        NSInteger index = [self clampedIndex:(self.currentItemIndex - numberOfItemsToShow/2 + i)];
+        [newViews addObject:[NSNumber numberWithUnsignedInteger:index]];
+	}
+	
+	// keys of cards to remove
+	NSMutableArray *toRemove = [NSMutableArray array];
+	for(NSNumber *cardDisplayed in itemViews)
+	{
+		if(![newViews containsObject:cardDisplayed])
+		{
+			[toRemove addObject:cardDisplayed];
+		} 
+		else
+		{
+			[newViews removeObject:cardDisplayed]; //already displayed
+		}
+	}
+	
+	// do this outside previous loop to avoid mutation while enumerating
+	for(NSNumber* rem in toRemove)
+	{
+        NSView* view = [itemViews objectForKey:rem];
         [view.superview removeFromSuperview];
-    }
-    for (NSView *view in placeholderViews)
-    {
-        [view.superview removeFromSuperview];
-    }
-    
-    //load new views
-    numberOfItems = [dataSource numberOfItemsInCarousel:self];
-    self.itemViews = [NSMutableArray arrayWithCapacity:numberOfItems];
-    for (NSUInteger i = 0; i < numberOfItems; i++)
-    {
-        NSView *view = [dataSource carousel:self viewForItemAtIndex:i];
+        [itemViews removeObjectForKey:rem];
+	}
+	
+	// setup cards for those needing to be displayed
+	for(NSNumber *viewToDisplay in newViews)
+	{
+        NSView* view = [itemViewCache objectForKey:viewToDisplay];
+        if (view == nil)
+        {
+            view = [dataSource carousel:self viewForItemAtIndex:[viewToDisplay unsignedIntegerValue]];
+            [itemViewCache setObject:view forKey:viewToDisplay];
+        }
         if (view == nil)
         {
             view = [[[NSView alloc] init] autorelease];
         }
-        [(NSMutableArray *)itemViews addObject:view];
+        [itemViews setObject:view forKey:viewToDisplay];
         [contentView addSubview:[self containView:view]];
     }
+    
     
     //load placeholders
     if ([dataSource respondsToSelector:@selector(numberOfPlaceholdersInCarousel:)])
@@ -357,29 +408,39 @@
         }
     }
     
-    //set item width (may be overidden by delegate)
-    itemWidth = [([itemViews count]? [itemViews objectAtIndex:0]: self) bounds].size.width;
+    self.itemsShownIndex = self.currentItemIndex;
     
     //layout views
     [self layOutItemViews];
 }
 
-- (NSInteger)clampedIndex:(NSInteger)index
+- (void)reloadData
 {
-    if ([self shouldWrap])
+    //remove old views
+    for (NSView *view in itemViews)
     {
-        return (index + numberOfItems) % numberOfItems;
+        [view.superview removeFromSuperview];
     }
-    else
+    for (NSView *view in placeholderViews)
     {
-        return MIN(MAX(index, 0), numberOfItems - 1);
+        [view.superview removeFromSuperview];
     }
+    
+    [itemViewCache removeAllObjects];
+    
+    [self.itemViews removeAllObjects];
+    [self.placeholderViews removeAllObjects];
+    
+    numberOfItems = [dataSource numberOfItemsInCarousel:self];
+    
+    [self syncViews];
 }
 
 - (NSInteger)currentItemIndex
 {	
     return [self clampedIndex:round(scrollOffset / itemWidth)];
 }
+
 
 - (void)scrollToItemAtIndex:(NSUInteger)index animated:(BOOL)animated
 {	
@@ -411,79 +472,89 @@
 
 - (void)removeItemAtIndex:(NSUInteger)index animated:(BOOL)animated
 {
-    NSView *itemView = [itemViews objectAtIndex:index];
+    [self reloadData];
+    // the efficient thing to do would be to change the cache entries
+    // for all indexes > index, then call syncViews
     
-    if (animated)
-    {
-        //        [NSView beginAnimations:nil context:nil];
-        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
-        //        [NSView setAnimationDuration:0.1];
-        
-        //        itemView.superview.alpha = 0.0;
-        itemView.superview.layer.opacity = 0.0;
-        //        [itemView.superview setHidden:YES];
-        
-        //[NSView commitAnimations];
-        [itemView.superview performSelector:@selector(removeFromSuperview) withObject:nil afterDelay:0.1];
-        
-        //        [NSView beginAnimations:nil context:nil];
-        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
-        //        [NSView setAnimationDuration:0.4];
-    }
-    else
-    {
-        [itemView.superview removeFromSuperview];
-    }
-    
-    [(NSMutableArray *)itemViews removeObjectAtIndex:index];
-    numberOfItems --;
-    [self transformItemViews];
-    
-    //    if (animated)
-    //    {
-    //        [NSView commitAnimations];
-    //    }
+//    numberOfItems --;
+//    
+//    
+//    if (animated)
+//    {
+//        //        [NSView beginAnimations:nil context:nil];
+//        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
+//        //        [NSView setAnimationDuration:0.1];
+//        
+//        //        itemView.superview.alpha = 0.0;
+//        itemView.superview.layer.opacity = 0.0;
+//        //        [itemView.superview setHidden:YES];
+//        
+//        //[NSView commitAnimations];
+//        [itemView.superview performSelector:@selector(removeFromSuperview) withObject:nil afterDelay:0.1];
+//        
+//        //        [NSView beginAnimations:nil context:nil];
+//        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
+//        //        [NSView setAnimationDuration:0.4];
+//    }
+//    else
+//    {
+//        [itemView.superview removeFromSuperview];
+//    }
+//    
+//    [itemViews removeObjectForKey:indexKey];
+//    [self transformItemViews];
+//    
+//    //    if (animated)
+//    //    {
+//    //        [NSView commitAnimations];
+//    //    }
 }
+
 
 - (void)insertItemAtIndex:(NSUInteger)index animated:(BOOL)animated
 {
-    numberOfItems ++;
+    [self reloadData];
+    // the efficient thing to do would be to change the cache entries
+    // for all indexes >= index, then call syncViews
     
-    NSView *itemView = [dataSource carousel:self viewForItemAtIndex:index];
-    [(NSMutableArray *)itemViews insertObject:itemView atIndex:index];
-    [contentView addSubview:[self containView:itemView]];
-    [self transformItemView:itemView atIndex:index];
-    
-    //    [itemView.superview setHidden:YES];
-    itemView.superview.layer.opacity = 0.0;
-    //itemView.superview.alpha = 0.0;
-    
-    if (animated)
-    {
-        //        [NSView beginAnimations:nil context:nil];
-        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
-        //        [NSView setAnimationDuration:0.4];
-        [self transformItemViews];   
-        //        [NSView commitAnimations];
-        //        
-        //        [NSView beginAnimations:nil context:nil];
-        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
-        //        [NSView setAnimationDelay:0.3];
-        //        [NSView setAnimationDuration:0.1];
-        
-        //        [itemView.superview setHidden:NO];
-        itemView.superview.layer.opacity = 1.0;
-        //        itemView.superview.alpha = 1.0;
-        
-        //        [NSView commitAnimations];
-    }
-    else
-    {
-        [self transformItemViews]; 
-        //        [itemView.superview setHidden:NO];
-        itemView.superview.layer.opacity = 1.0;
-        //        itemView.superview.alpha = 1.0;
-    }
+//    numberOfItems ++;
+//    
+//    
+//    NSView *itemView = [dataSource carousel:self viewForItemAtIndex:index];
+//    [(NSMutableArray *)itemViews insertObject:itemView atIndex:arrayIndex];
+//    [contentView addSubview:[self containView:itemView]];
+//    [self transformItemView:itemView atIndex:index];
+//    
+//    //    [itemView.superview setHidden:YES];
+//    itemView.superview.layer.opacity = 0.0;
+//    //itemView.superview.alpha = 0.0;
+//    
+//    if (animated)
+//    {
+//        //        [NSView beginAnimations:nil context:nil];
+//        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
+//        //        [NSView setAnimationDuration:0.4];
+//        [self transformItemViews];   
+//        //        [NSView commitAnimations];
+//        //        
+//        //        [NSView beginAnimations:nil context:nil];
+//        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
+//        //        [NSView setAnimationDelay:0.3];
+//        //        [NSView setAnimationDuration:0.1];
+//        
+//        //        [itemView.superview setHidden:NO];
+//        itemView.superview.layer.opacity = 1.0;
+//        //        itemView.superview.alpha = 1.0;
+//        
+//        //        [NSView commitAnimations];
+//    }
+//    else
+//    {
+//        [self transformItemViews]; 
+//        //        [itemView.superview setHidden:NO];
+//        itemView.superview.layer.opacity = 1.0;
+//        //        itemView.superview.alpha = 1.0;
+//    }
 }
 
 - (void)didMoveToSuperview
@@ -509,20 +580,22 @@
     {
         scrollOffset = fmin(fmax(0.0, scrollOffset), numberOfItems * itemWidth - itemWidth);
     }
-    [self transformItemViews];
     if ([delegate respondsToSelector:@selector(carouselDidScroll:)])
     {
         [delegate carouselDidScroll:self];
     }
     NSInteger currentItemIndex = self.currentItemIndex;
-    if (previousItemIndex != currentItemIndex && [delegate respondsToSelector:@selector(carouselCurrentItemIndexUpdated:)])
+    
+    if (previousItemIndex != currentItemIndex)
     {
         previousItemIndex = currentItemIndex;
-        if (currentItemIndex > -1)
+        if (currentItemIndex > -1 && [delegate respondsToSelector:@selector(carouselCurrentItemIndexUpdated:)] && !scrolling && !isDragging && !decelerating)
         {
             [delegate carouselCurrentItemIndexUpdated:self];
         }
     }
+    
+    [self syncViews];
 }
 
 - (void)step
@@ -570,6 +643,7 @@
 {    
     if (scrollEnabled)
     {
+        isDragging = YES;
         lastTime = [theEvent timestamp];
         scrolling = NO;
         decelerating = NO;
@@ -596,6 +670,7 @@
 {
     if (scrollEnabled)
     {
+        isDragging = NO;
         decelerating = YES;
     }
 }
@@ -608,6 +683,7 @@
     [timer invalidate];
     [contentView release];
     [itemViews release];
+    [itemViewCache release];
     [placeholderViews release];
     [super dealloc];
 }
