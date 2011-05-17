@@ -665,34 +665,18 @@
     }
 }
 
-- (void) mouseDown:(NSEvent *)theEvent
-{    
+- (void) userStartedTranslating:(NSTimeInterval)timestamp
+{
     if (scrollEnabled)
     {
         isDragging = YES;
-        lastTime = [theEvent timestamp];
+        lastTime = timestamp;
         scrolling = NO;
         decelerating = NO;
     }
 }
 
-- (void) mouseDragged:(NSEvent *)theEvent
-{
-    if (scrollEnabled)
-    {
-        float translation = [theEvent deltaX];
-        NSInteger index = round(scrollOffset / itemWidth);
-        float factor = ([self shouldWrap] || (index >= 0 && index < numberOfItems))? 1.0: 0.5;
-        
-        NSTimeInterval thisTime = [theEvent timestamp];
-        currentVelocity = (translation / (thisTime - lastTime)) * factor;
-        lastTime = thisTime;
-        scrollOffset -= translation * factor;
-        [self didScroll];
-    }
-}
-
-- (void) mouseUp:(NSEvent *)theEvent
+- (void) userFinishedTranslating
 {
     if (scrollEnabled)
     {
@@ -700,6 +684,64 @@
         decelerating = YES;
     }
 }
+
+// theEvent can be from mouseDragged or scrollWheel
+- (void) translateCarousel:(float)translation timestamp:(NSTimeInterval)thisTime
+{
+    if (scrollEnabled)
+    {
+        NSInteger index = round(scrollOffset / itemWidth);
+        float factor = ([self shouldWrap] || (index >= 0 && index < numberOfItems))? 1.0: 0.5;
+        
+        currentVelocity = (translation / (thisTime - lastTime)) * factor;
+        lastTime = thisTime;
+        
+        scrollOffset -= translation * factor;
+        [self didScroll];
+    }
+}
+
+- (void) mouseDown:(NSEvent *)theEvent
+{    
+    [self userStartedTranslating:[theEvent timestamp]];
+}
+
+- (void) mouseUp:(NSEvent *)theEvent
+{
+    [self userFinishedTranslating];
+}
+
+- (void) mouseDragged:(NSEvent *)theEvent
+{
+    [self translateCarousel:[theEvent deltaX] timestamp:[theEvent timestamp]];
+}
+
+#define ScrollWheelTranslationMultiplier 30.0
+#define ScrollWheelOffDelay 0.1
+
+- (void) scrollWheelFinished:(NSTimer*)theTimer
+{
+    scrollWheelTimer = nil;
+    [self userFinishedTranslating];
+}
+
+- (void)scrollWheel:(NSEvent *)theEvent
+{
+    [scrollWheelTimer invalidate];
+    scrollWheelTimer = nil;
+    
+    if (!isDragging)
+    {
+        [self userStartedTranslating:[theEvent timestamp]];
+    }
+    else
+    {
+        [self translateCarousel:(ScrollWheelTranslationMultiplier*[theEvent deltaY]) timestamp:[theEvent timestamp]];
+    }
+    
+    scrollWheelTimer = [NSTimer scheduledTimerWithTimeInterval:ScrollWheelOffDelay target:self selector:@selector(scrollWheelFinished:) userInfo:nil repeats:NO];
+}
+
 
 #pragma mark -
 #pragma mark Memory management

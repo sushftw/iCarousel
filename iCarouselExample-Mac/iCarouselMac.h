@@ -52,6 +52,7 @@ iCarouselType;
     BOOL isDragging;
     NSTimeInterval startTime;
     float previousTranslation;
+    NSTimer* scrollWheelTimer;
     
     
     float itemWidth;
