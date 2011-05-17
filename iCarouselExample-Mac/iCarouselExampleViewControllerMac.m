@@ -30,10 +30,14 @@
 
 - (void) setView:(NSView *)view
 {
+    numItems = 50;
     wrap = YES;
     [super setView:view];
     carousel.type = iCarouselTypeCoverFlow;
     carousel.maxNumberOfItemsToShow = 10;
+    [slider setIntegerValue:numItems];
+    [countField setIntegerValue:numItems];
+    [indexField setIntegerValue:0];
     [wrapCheckbox setState:(wrap ? NSOnState : NSOffState)];
 }
 
@@ -79,13 +83,24 @@
     [carousel reloadData];
 }
 
+- (IBAction) sliderChanged:(id)sender
+{
+    if ([slider integerValue] != numItems)
+    {
+        numItems = [slider integerValue];
+        [countField setIntegerValue:numItems];
+        
+        [carousel reloadData];
+    }
+}
+
 
 #pragma mark -
 #pragma mark iCarouselDataSource methods
 
 - (NSUInteger)numberOfItemsInCarousel:(iCarouselMac *)carousel
 {
-    return 1200;
+    return numItems;
 }
 
 - (NSView *)carousel:(iCarouselMac *)carousel viewForItemAtIndex:(NSUInteger)index
@@ -112,8 +127,8 @@
 
 - (void) carouselDidScroll:(iCarouselMac *)carousel
 {
-    [progressBar startAnimation:self];
-    [progressBar setHidden:NO];
+    [progressIndicator startAnimation:self];
+    [progressIndicator setHidden:NO];
 }
 
 - (void) carouselCurrentItemIndexUpdated:(iCarouselMac *)theCarousel
@@ -123,8 +138,8 @@
 
 - (void)carouselStopped:(iCarouselMac *)theCarousel
 {
-    [progressBar stopAnimation:self];
-    [progressBar setHidden:YES];
+    [progressIndicator stopAnimation:self];
+    [progressIndicator setHidden:YES];
 }
 
 - (float)carouselItemWidth:(iCarouselMac *)carousel

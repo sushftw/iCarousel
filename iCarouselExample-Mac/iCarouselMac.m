@@ -172,6 +172,11 @@
 
 - (NSInteger)clampedIndex:(NSInteger)index
 {
+    if (numberOfItems == 0)
+    {
+        return 0;
+    }
+    
     if ([self shouldWrap])
     {
         return (index + numberOfItems) % numberOfItems;
@@ -456,6 +461,11 @@
     
     numberOfItems = [dataSource numberOfItemsInCarousel:self];
     
+    if (round(scrollOffset / itemWidth) >= numberOfItems)
+    {
+        [self scrollToItemAtIndex:(numberOfItems > 0 ? numberOfItems-1 : 0) animated:NO];
+    }
+    
     [self syncViews];
 }
 
@@ -619,6 +629,11 @@
     }
     
     [self syncViews];
+    
+    if (scrolling == NO && [delegate respondsToSelector:@selector(carouselStopped:)])
+    {
+        [delegate carouselStopped:self];
+    }
 }
 
 - (void)step
@@ -638,10 +653,6 @@
         float delta = (time < 0.5f)? 0.5f * pow(time * 2.0, 3.0): 0.5f * pow(time * 2.0 - 2.0, 3.0) + 1.0; //ease in/out
         scrollOffset = startOffset + (endOffset - startOffset) * delta;
         [self didScroll];
-        if (scrolling == NO && [delegate respondsToSelector:@selector(carouselStopped:)])
-        {
-            [delegate carouselStopped:self];
-        }
     }
     else if (decelerating)
     {
