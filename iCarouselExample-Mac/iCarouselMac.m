@@ -113,20 +113,43 @@
 
 - (void)setDataSource:(id<iCarouselMacDataSource>)_dataSource
 {
+    if (dataSource == _dataSource)
+    {
+        return;
+    }
     dataSource = _dataSource;
     [self reloadData];
 }
 
 - (void)setDelegate:(id<iCarouselMacDelegate>)_delegate
 {
+    if (delegate == _delegate)
+    {
+        return;
+    }
     delegate = _delegate;
     [self syncViews]; // wrap change can change cards that are shown
 }
 
 - (void)setType:(iCarouselType)_type
 {
+    if (type == _type)
+    {
+        return;
+    }
     type = _type;
     [self syncViews]; // wrap change can change the cards that are shown
+}
+
+- (void) setMaxNumberOfItemsToShow:(NSInteger)_maxNumberOfItemsToShow
+{
+    if (maxNumberOfItemsToShow == _maxNumberOfItemsToShow)
+    {
+        return;
+    }
+    
+    maxNumberOfItemsToShow = _maxNumberOfItemsToShow;
+    [self syncViews];
 }
 
 - (BOOL)shouldWrap
