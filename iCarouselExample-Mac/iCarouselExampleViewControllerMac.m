@@ -34,6 +34,7 @@
     [super setView:view];
     carousel.type = iCarouselTypeCoverFlow;
     carousel.maxNumberOfItemsToShow = 10;
+    [wrapCheckbox setState:(wrap ? NSOnState : NSOffState)];
 }
 
 - (IBAction)switchCarouselType:(id)sender
@@ -69,9 +70,12 @@
     }
 }
 
-- (IBAction)toggleWrap
+- (IBAction)toggleWrap:(id)sender
 {
     wrap = !wrap;
+    
+    [wrapCheckbox setState:(wrap ? NSOnState : NSOffState)];
+    
     [carousel reloadData];
 }
 

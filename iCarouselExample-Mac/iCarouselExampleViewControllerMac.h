@@ -15,11 +15,12 @@
     
     IBOutlet NSTextField* indexField;
     IBOutlet NSProgressIndicator* progressBar;
+    IBOutlet NSButton* wrapCheckbox;
 }
 
 @property (nonatomic, retain) IBOutlet iCarouselMac *carousel;
 
 - (IBAction)switchCarouselType:(id)sender;
-- (IBAction)toggleWrap;
+- (IBAction)toggleWrap:(id)sender;
 
 @end

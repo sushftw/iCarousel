@@ -439,8 +439,9 @@
 - (void)reloadData
 {
     //remove old views
-    for (NSView *view in itemViews)
+    for (NSNumber* item in itemViews)
     {
+        NSView* view = [itemViews objectForKey:item];
         [view.superview removeFromSuperview];
     }
     for (NSView *view in placeholderViews)
