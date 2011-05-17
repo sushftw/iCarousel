@@ -67,40 +67,17 @@
     {
         carousel.type = iCarouselTypeCustom;
     }
-    
-//    UIActionSheet *sheet = [[UIActionSheet alloc] initWithTitle:@"Select Carousel Type"
-//                                                       delegate:self
-//                                              cancelButtonTitle:nil
-//                                         destructiveButtonTitle:nil
-//                                              otherButtonTitles:@"Linear", @"Rotary", @"Inverted Rotary", @"Cylinder", @"Inverted Cylinder", @"CoverFlow", @"Custom", nil];
-//    [sheet showInView:self.view];
-//    [sheet release];
 }
 
 - (IBAction)toggleWrap
 {
     wrap = !wrap;
-    //navItem.rightBarButtonItem.title = wrap? @"Wrap: ON": @"Wrap: OFF";
     [carousel reloadData];
 }
 
-//#pragma mark -
-//#pragma mark UIActionSheet methods
-//
-//- (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
-//{
-//    //restore view opacities to normal
-//    for (UIView *view in carousel.itemViews)
-//    {
-//        view.alpha = 1.0;
-//    }
-//    
-//    carousel.type = buttonIndex;
-//    navItem.title = [actionSheet buttonTitleAtIndex:buttonIndex];
-//}
 
 #pragma mark -
-#pragma mark iCarousel methods
+#pragma mark iCarouselDataSource methods
 
 - (NSUInteger)numberOfItemsInCarousel:(iCarouselMac *)carousel
 {
@@ -110,7 +87,6 @@
 - (NSView *)carousel:(iCarouselMac *)carousel viewForItemAtIndex:(NSUInteger)index
 {
     //create a numbered view
-    //NSView *view = [[[NSImageView alloc] initWithImage:[NSImage imageNamed:@"page.png"]] autorelease];
     NSImage* image = [NSImage imageNamed:@"page.png"];
     NSImageView* view = [[[NSImageView alloc] initWithFrame:NSMakeRect(0,0,image.size.width,image.size.height)] autorelease];
     [view setImage:image];
@@ -127,6 +103,26 @@
     return view;
 }
 
+#pragma mark -
+#pragma mark iCarouselDelegate Methods
+
+- (void) carouselDidScroll:(iCarouselMac *)carousel
+{
+    [progressBar startAnimation:self];
+    [progressBar setHidden:NO];
+}
+
+- (void) carouselCurrentItemIndexUpdated:(iCarouselMac *)theCarousel
+{
+    [indexField setStringValue:[NSString stringWithFormat:@"%ld", (long)carousel.currentItemIndex]]; 
+}
+
+- (void)carouselStopped:(iCarouselMac *)theCarousel
+{
+    [progressBar stopAnimation:self];
+    [progressBar setHidden:YES];
+}
+
 - (float)carouselItemWidth:(iCarouselMac *)carousel
 {
     //slightly wider than item view
@@ -138,7 +134,7 @@
     //implement 'flip3D' style carousel
     
     //set opacity based on distance from camera
-    //view.alpha = 1.0 - fminf(fmaxf(offset, 0.0), 1.0);
+    view.layer.opacity = 1.0 - fminf(fmaxf(offset, 0.0), 1.0);
     
     //do 3d transform
     CATransform3D transform = CATransform3DIdentity;

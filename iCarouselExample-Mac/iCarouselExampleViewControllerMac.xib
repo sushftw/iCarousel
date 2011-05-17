@@ -11,10 +11,13 @@
 			<string key="NS.object.0">1306</string>
 		</object>
 		<array key="IBDocument.IntegratedClassDependencies">
-			<string>NSCustomView</string>
-			<string>NSImageView</string>
-			<string>NSImageCell</string>
+			<string>NSTextField</string>
 			<string>NSCustomObject</string>
+			<string>NSProgressIndicator</string>
+			<string>NSCustomView</string>
+			<string>NSImageCell</string>
+			<string>NSImageView</string>
+			<string>NSTextFieldCell</string>
 		</array>
 		<array key="IBDocument.PluginDependencies">
 			<string>com.apple.InterfaceBuilder.CocoaPlugin</string>
@@ -34,49 +37,110 @@
 				<reference key="NSNextResponder"/>
 				<int key="NSvFlags">274</int>
 				<array class="NSMutableArray" key="NSSubviews">
-					<object class="NSCustomView" id="9636525">
+					<object class="NSProgressIndicator" id="208317294">
+						<reference key="NSNextResponder" ref="1005"/>
+						<int key="NSvFlags">-2147482355</int>
+						<object class="NSPSMatrix" key="NSDrawMatrix"/>
+						<string key="NSFrame">{{173, 244}, {135, 20}}</string>
+						<reference key="NSSuperview" ref="1005"/>
+						<reference key="NSWindow"/>
+						<reference key="NSNextKeyView" ref="794836741"/>
+						<int key="NSpiFlags">16394</int>
+						<double key="NSMaxValue">100</double>
+					</object>
+					<object class="NSCustomView" id="890719477">
 						<reference key="NSNextResponder" ref="1005"/>
 						<int key="NSvFlags">274</int>
-						<string key="NSFrameSize">{480, 272}</string>
+						<array class="NSMutableArray" key="NSSubviews">
+							<object class="NSCustomView" id="9636525">
+								<reference key="NSNextResponder" ref="890719477"/>
+								<int key="NSvFlags">274</int>
+								<string key="NSFrameSize">{480, 234}</string>
+								<reference key="NSSuperview" ref="890719477"/>
+								<reference key="NSWindow"/>
+								<reference key="NSNextKeyView"/>
+								<string key="NSClassName">iCarouselMac</string>
+							</object>
+							<object class="NSImageView" id="445584435">
+								<reference key="NSNextResponder" ref="890719477"/>
+								<int key="NSvFlags">274</int>
+								<set class="NSMutableSet" key="NSDragTypes">
+									<string>Apple PDF pasteboard type</string>
+									<string>Apple PICT pasteboard type</string>
+									<string>Apple PNG pasteboard type</string>
+									<string>NSFilenamesPboardType</string>
+									<string>NeXT Encapsulated PostScript v1.2 pasteboard type</string>
+									<string>NeXT TIFF v4.0 pasteboard type</string>
+								</set>
+								<string key="NSFrameSize">{480, 234}</string>
+								<reference key="NSSuperview" ref="890719477"/>
+								<reference key="NSWindow"/>
+								<reference key="NSNextKeyView" ref="9636525"/>
+								<bool key="NSEnabled">YES</bool>
+								<object class="NSImageCell" key="NSCell" id="177418689">
+									<int key="NSCellFlags">130560</int>
+									<int key="NSCellFlags2">33554432</int>
+									<object class="NSCustomResource" key="NSContents">
+										<string key="NSClassName">NSImage</string>
+										<string key="NSResourceName">background</string>
+									</object>
+									<int key="NSAlign">0</int>
+									<int key="NSScale">1</int>
+									<int key="NSStyle">0</int>
+									<bool key="NSAnimates">NO</bool>
+								</object>
+								<bool key="NSEditable">YES</bool>
+							</object>
+						</array>
+						<string key="NSFrameSize">{480, 234}</string>
 						<reference key="NSSuperview" ref="1005"/>
 						<reference key="NSWindow"/>
 						<reference key="NSNextKeyView" ref="445584435"/>
-						<string key="NSClassName">iCarouselMac</string>
+						<string key="NSClassName">NSView</string>
 					</object>
-					<object class="NSImageView" id="445584435">
+					<object class="NSTextField" id="794836741">
 						<reference key="NSNextResponder" ref="1005"/>
-						<int key="NSvFlags">274</int>
-						<set class="NSMutableSet" key="NSDragTypes">
-							<string>Apple PDF pasteboard type</string>
-							<string>Apple PICT pasteboard type</string>
-							<string>Apple PNG pasteboard type</string>
-							<string>NSFilenamesPboardType</string>
-							<string>NeXT Encapsulated PostScript v1.2 pasteboard type</string>
-							<string>NeXT TIFF v4.0 pasteboard type</string>
-						</set>
-						<string key="NSFrameSize">{480, 272}</string>
+						<int key="NSvFlags">265</int>
+						<string key="NSFrame">{{397, 245}, {66, 22}}</string>
 						<reference key="NSSuperview" ref="1005"/>
 						<reference key="NSWindow"/>
+						<reference key="NSNextKeyView" ref="890719477"/>
 						<bool key="NSEnabled">YES</bool>
-						<object class="NSImageCell" key="NSCell" id="177418689">
-							<int key="NSCellFlags">130560</int>
-							<int key="NSCellFlags2">33554432</int>
-							<object class="NSCustomResource" key="NSContents">
-								<string key="NSClassName">NSImage</string>
-								<string key="NSResourceName">background</string>
+						<object class="NSTextFieldCell" key="NSCell" id="1043597445">
+							<int key="NSCellFlags">68288064</int>
+							<int key="NSCellFlags2">71304192</int>
+							<string key="NSContents">index</string>
+							<object class="NSFont" key="NSSupport">
+								<string key="NSName">LucidaGrande</string>
+								<double key="NSSize">18</double>
+								<int key="NSfFlags">16</int>
 							</object>
-							<int key="NSAlign">0</int>
-							<int key="NSScale">1</int>
-							<int key="NSStyle">0</int>
-							<bool key="NSAnimates">NO</bool>
+							<reference key="NSControlView" ref="794836741"/>
+							<object class="NSColor" key="NSBackgroundColor">
+								<int key="NSColorSpace">6</int>
+								<string key="NSCatalogName">System</string>
+								<string key="NSColorName">controlColor</string>
+								<object class="NSColor" key="NSColor">
+									<int key="NSColorSpace">3</int>
+									<bytes key="NSWhite">MC42NjY2NjY2NjY3AA</bytes>
+								</object>
+							</object>
+							<object class="NSColor" key="NSTextColor">
+								<int key="NSColorSpace">6</int>
+								<string key="NSCatalogName">System</string>
+								<string key="NSColorName">controlTextColor</string>
+								<object class="NSColor" key="NSColor">
+									<int key="NSColorSpace">3</int>
+									<bytes key="NSWhite">MAA</bytes>
+								</object>
+							</object>
 						</object>
-						<bool key="NSEditable">YES</bool>
 					</object>
 				</array>
 				<string key="NSFrameSize">{480, 272}</string>
 				<reference key="NSSuperview"/>
 				<reference key="NSWindow"/>
-				<reference key="NSNextKeyView" ref="9636525"/>
+				<reference key="NSNextKeyView" ref="208317294"/>
 				<string key="NSClassName">NSView</string>
 			</object>
 		</array>
@@ -114,6 +178,22 @@
 					</object>
 					<int key="connectionID">11</int>
 				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">indexField</string>
+						<reference key="source" ref="1001"/>
+						<reference key="destination" ref="794836741"/>
+					</object>
+					<int key="connectionID">21</int>
+				</object>
+				<object class="IBConnectionRecord">
+					<object class="IBOutletConnection" key="connection">
+						<string key="label">progressBar</string>
+						<reference key="source" ref="1001"/>
+						<reference key="destination" ref="208317294"/>
+					</object>
+					<int key="connectionID">22</int>
+				</object>
 			</array>
 			<object class="IBMutableOrderedSet" key="objectRecords">
 				<array key="orderedObjects">
@@ -145,15 +225,19 @@
 						<int key="objectID">1</int>
 						<reference key="object" ref="1005"/>
 						<array class="NSMutableArray" key="children">
-							<reference ref="9636525"/>
-							<reference ref="445584435"/>
+							<reference ref="890719477"/>
+							<reference ref="794836741"/>
+							<reference ref="208317294"/>
 						</array>
 						<reference key="parent" ref="0"/>
 					</object>
 					<object class="IBObjectRecord">
-						<int key="objectID">4</int>
-						<reference key="object" ref="9636525"/>
-						<array class="NSMutableArray" key="children"/>
+						<int key="objectID">19</int>
+						<reference key="object" ref="890719477"/>
+						<array class="NSMutableArray" key="children">
+							<reference ref="9636525"/>
+							<reference ref="445584435"/>
+						</array>
 						<reference key="parent" ref="1005"/>
 					</object>
 					<object class="IBObjectRecord">
@@ -162,12 +246,36 @@
 						<array class="NSMutableArray" key="children">
 							<reference ref="177418689"/>
 						</array>
-						<reference key="parent" ref="1005"/>
+						<reference key="parent" ref="890719477"/>
 					</object>
 					<object class="IBObjectRecord">
 						<int key="objectID">14</int>
 						<reference key="object" ref="177418689"/>
 						<reference key="parent" ref="445584435"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">4</int>
+						<reference key="object" ref="9636525"/>
+						<array class="NSMutableArray" key="children"/>
+						<reference key="parent" ref="890719477"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">15</int>
+						<reference key="object" ref="794836741"/>
+						<array class="NSMutableArray" key="children">
+							<reference ref="1043597445"/>
+						</array>
+						<reference key="parent" ref="1005"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">16</int>
+						<reference key="object" ref="1043597445"/>
+						<reference key="parent" ref="794836741"/>
+					</object>
+					<object class="IBObjectRecord">
+						<int key="objectID">20</int>
+						<reference key="object" ref="208317294"/>
+						<reference key="parent" ref="1005"/>
 					</object>
 				</array>
 			</object>
@@ -181,13 +289,17 @@
 				<string key="1.editorWindowContentRectSynchronizationRect">{{357, 416}, {480, 272}}</string>
 				<string key="13.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="14.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="15.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="16.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="19.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
+				<string key="20.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 				<string key="4.IBPluginDependency">com.apple.InterfaceBuilder.CocoaPlugin</string>
 			</dictionary>
 			<dictionary class="NSMutableDictionary" key="unlocalizedProperties"/>
 			<nil key="activeLocalization"/>
 			<dictionary class="NSMutableDictionary" key="localizations"/>
 			<nil key="sourceID"/>
-			<int key="maxID">14</int>
+			<int key="maxID">22</int>
 		</object>
 		<object class="IBClassDescriber" key="IBDocument.Classes">
 			<array class="NSMutableArray" key="referencedPartialClassDescriptions">
@@ -205,17 +317,25 @@
 							<string key="candidateClassName">id</string>
 						</object>
 					</object>
-					<object class="NSMutableDictionary" key="outlets">
-						<string key="NS.key.0">carousel</string>
-						<string key="NS.object.0">iCarouselMac</string>
-					</object>
-					<object class="NSMutableDictionary" key="toOneOutletInfosByName">
-						<string key="NS.key.0">carousel</string>
-						<object class="IBToOneOutletInfo" key="NS.object.0">
+					<dictionary class="NSMutableDictionary" key="outlets">
+						<string key="carousel">iCarouselMac</string>
+						<string key="indexField">NSTextField</string>
+						<string key="progressBar">NSProgressIndicator</string>
+					</dictionary>
+					<dictionary class="NSMutableDictionary" key="toOneOutletInfosByName">
+						<object class="IBToOneOutletInfo" key="carousel">
 							<string key="name">carousel</string>
 							<string key="candidateClassName">iCarouselMac</string>
 						</object>
-					</object>
+						<object class="IBToOneOutletInfo" key="indexField">
+							<string key="name">indexField</string>
+							<string key="candidateClassName">NSTextField</string>
+						</object>
+						<object class="IBToOneOutletInfo" key="progressBar">
+							<string key="name">progressBar</string>
+							<string key="candidateClassName">NSProgressIndicator</string>
+						</object>
+					</dictionary>
 					<object class="IBClassDescriptionSource" key="sourceIdentifier">
 						<string key="majorKey">IBProjectSource</string>
 						<string key="minorKey">./Classes/iCarouselExampleViewControllerMac.h</string>

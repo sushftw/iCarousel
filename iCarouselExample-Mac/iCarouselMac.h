@@ -105,6 +105,8 @@ iCarouselType;
 
 - (void)carouselDidScroll:(iCarouselMac *)carousel;
 - (void)carouselCurrentItemIndexUpdated:(iCarouselMac *)carousel;
+- (void)carouselStopped:(iCarouselMac *)carousel;
+
 - (float)carouselItemWidth:(iCarouselMac *)carousel;
 - (BOOL)carouselShouldWrap:(iCarouselMac *)carousel;
 - (CATransform3D)carousel:(iCarouselMac *)carousel transformForItemView:(NSView *)view withOffset:(float)offset;

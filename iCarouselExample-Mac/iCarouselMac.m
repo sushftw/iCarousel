@@ -81,6 +81,7 @@
     itemViewCache = [[NSCache alloc] init];
     maxNumberOfItemsToShow = INT_MAX;
     itemsShownIndex = 0;
+    scrollOffset = 0;
     
     contentView = [[NSView alloc] initWithFrame:self.bounds];
     [contentView setWantsLayer:YES];
@@ -286,7 +287,7 @@
         [self transformItemView:view atIndex:[index unsignedIntegerValue]];
     }
 
-    // not sure this is necessary
+    // sushftw: not sure this is necessary
     //bring current view to front
 //    if ([itemViews count])
 //    {
@@ -321,23 +322,21 @@
         itemWidth = [([itemViews count]? [[itemViews allValues] lastObject]: self) bounds].size.width;
     }
     
-    // on mac this never gets initialized, so is nan to beginwith
-    if (isnan(scrollOffset))
-    {
-        scrollOffset = 0;
-    }
     
     //adjust scroll offset
-    scrollOffset = scrollOffset / prevItemWidth * itemWidth;
+    if (prevItemWidth > 0)
+    {
+        scrollOffset = scrollOffset / prevItemWidth * itemWidth;
+    }
     
     //transform views
     [self transformItemViews];
     
-    //call delegate
-    if (prevItemWidth != itemWidth && [delegate respondsToSelector:@selector(carouselDidScroll:)])
-    {
-        [delegate carouselDidScroll:self];
-    }
+    // sushftw: i don't think changing width should count as scrolling
+//    if (prevItemWidth != itemWidth && [delegate respondsToSelector:@selector(carouselDidScroll:)])
+//    {
+//        [delegate carouselDidScroll:self];
+//    }
 }
 
 - (void) syncViews
@@ -473,7 +472,7 @@
 - (void)removeItemAtIndex:(NSUInteger)index animated:(BOOL)animated
 {
     [self reloadData];
-    // the efficient thing to do would be to change the cache entries
+    // sushftw: the efficient thing to do would be to change the cache entries
     // for all indexes > index, then call syncViews
     
 //    numberOfItems --;
@@ -514,7 +513,7 @@
 - (void)insertItemAtIndex:(NSUInteger)index animated:(BOOL)animated
 {
     [self reloadData];
-    // the efficient thing to do would be to change the cache entries
+    // sushftw: the efficient thing to do would be to change the cache entries
     // for all indexes >= index, then call syncViews
     
 //    numberOfItems ++;
@@ -589,7 +588,7 @@
     if (previousItemIndex != currentItemIndex)
     {
         previousItemIndex = currentItemIndex;
-        if (currentItemIndex > -1 && [delegate respondsToSelector:@selector(carouselCurrentItemIndexUpdated:)] && !scrolling && !isDragging && !decelerating)
+        if (currentItemIndex > -1 && [delegate respondsToSelector:@selector(carouselCurrentItemIndexUpdated:)])
         {
             [delegate carouselCurrentItemIndexUpdated:self];
         }
@@ -615,6 +614,10 @@
         float delta = (time < 0.5f)? 0.5f * pow(time * 2.0, 3.0): 0.5f * pow(time * 2.0 - 2.0, 3.0) + 1.0; //ease in/out
         scrollOffset = startOffset + (endOffset - startOffset) * delta;
         [self didScroll];
+        if (scrolling == NO && [delegate respondsToSelector:@selector(carouselStopped:)])
+        {
+            [delegate carouselStopped:self];
+        }
     }
     else if (decelerating)
     {

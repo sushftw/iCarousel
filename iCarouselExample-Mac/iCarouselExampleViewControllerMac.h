@@ -13,6 +13,8 @@
 {
 @private
     
+    IBOutlet NSTextField* indexField;
+    IBOutlet NSProgressIndicator* progressBar;
 }
 
 @property (nonatomic, retain) IBOutlet iCarouselMac *carousel;
