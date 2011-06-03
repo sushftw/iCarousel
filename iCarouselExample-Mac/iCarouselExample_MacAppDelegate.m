@@ -17,6 +17,7 @@
 - (void)applicationDidFinishLaunching:(NSNotification *)aNotification
 {
     [window setContentView:self.viewController.view];
+    [window makeFirstResponder:self.viewController.carousel];
 }
 
 - (BOOL) applicationShouldTerminateAfterLastWindowClosed:(NSApplication *)sender

@@ -138,6 +138,7 @@
 
 - (void)carouselStopped:(iCarouselMac *)theCarousel
 {
+    NSLog(@"carousel stopped");
     [progressIndicator stopAnimation:self];
     [progressIndicator setHidden:YES];
 }

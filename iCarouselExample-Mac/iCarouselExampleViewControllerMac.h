@@ -20,6 +20,7 @@
     IBOutlet NSSlider* slider;
     
     NSInteger numItems;
+    BOOL wrap;
 }
 
 @property (nonatomic, retain) IBOutlet iCarouselMac *carousel;

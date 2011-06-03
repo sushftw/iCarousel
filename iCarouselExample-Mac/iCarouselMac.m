@@ -630,7 +630,7 @@
     
     [self syncViews];
     
-    if (scrolling == NO && [delegate respondsToSelector:@selector(carouselStopped:)])
+    if (!scrolling && !decelerating && !isDragging && [delegate respondsToSelector:@selector(carouselStopped:)])
     {
         [delegate carouselStopped:self];
     }
@@ -754,6 +754,33 @@
     scrollWheelTimer = [NSTimer scheduledTimerWithTimeInterval:ScrollWheelOffDelay target:self selector:@selector(scrollWheelFinished:) userInfo:nil repeats:NO];
 }
 
+- (BOOL) acceptsFirstResponder
+{
+    return YES;
+}
+
+- (void) keyDown:(NSEvent *)theEvent
+{
+    if ([theEvent modifierFlags] & NSNumericPadKeyMask)
+    {
+        NSString *theArrow = [theEvent charactersIgnoringModifiers];
+        if ( [theArrow length] == 1 )
+        {
+            unichar keyChar = [theArrow characterAtIndex:0];
+            if ( keyChar == NSLeftArrowFunctionKey )
+            {
+                [self scrollToItemAtIndex:self.currentItemIndex-1 animated:YES];
+                return;
+            }
+            if ( keyChar == NSRightArrowFunctionKey )
+            {
+                [self scrollToItemAtIndex:self.currentItemIndex+1 animated:YES];
+                return;
+            }
+        }
+    }
+}
+    
 
 #pragma mark -
 #pragma mark Memory management
