@@ -143,6 +143,11 @@
     [progressIndicator setHidden:YES];
 }
 
+- (void) carouselCurrentItemTapped:(iCarouselMac *)theCarousel
+{
+    NSLog(@"tapped %ld", (long) carousel.currentItemIndex);
+}
+
 - (float)carouselItemWidth:(iCarouselMac *)carousel
 {
     //slightly wider than item view

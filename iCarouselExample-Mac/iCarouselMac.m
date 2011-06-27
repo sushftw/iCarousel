@@ -26,7 +26,6 @@
 @property (nonatomic, assign) NSTimer *timer;
 @property (nonatomic, assign) NSTimeInterval previousTime;
 @property (nonatomic, assign) BOOL decelerating;
-@property (nonatomic, assign) float previousTranslation;
 
 
 - (void)syncViews;
@@ -47,6 +46,7 @@
 @synthesize numberOfItems;
 @synthesize numberOfPlaceholders;
 @synthesize maxNumberOfItemsToShow;
+@synthesize numberOfItemsShown;
 @synthesize contentView;
 @synthesize itemViews;
 @synthesize itemsShownIndex;
@@ -65,7 +65,6 @@
 @synthesize endOffset;
 @synthesize startTime;
 @synthesize scrolling;
-@synthesize previousTranslation;
 
 - (void)setup
 {
@@ -78,15 +77,14 @@
     bounces = YES;
     
     itemViews = [[NSMutableDictionary dictionary] retain];
-    itemViewCache = [[NSCache alloc] init];
-    maxNumberOfItemsToShow = INT_MAX;
+    maxNumberOfItemsToShow = 5;
     itemsShownIndex = 0;
     scrollOffset = 0;
     
     contentView = [[NSView alloc] initWithFrame:self.bounds];
     [contentView setWantsLayer:YES];
     contentView.layer.masksToBounds = NO;
-
+    
     [self addSubview:contentView];
     
     timer = [NSTimer scheduledTimerWithTimeInterval:1.0/60.0 target:self selector:@selector(step) userInfo:nil repeats:YES];
@@ -150,6 +148,11 @@
     
     maxNumberOfItemsToShow = _maxNumberOfItemsToShow;
     [self syncViews];
+}
+
+- (NSUInteger) numberOfItemsShown
+{
+    return MIN(self.maxNumberOfItemsToShow, self.numberOfItems);
 }
 
 - (BOOL)shouldWrap
@@ -314,13 +317,13 @@
         NSView *view = [itemViews objectForKey:index];
         [self transformItemView:view atIndex:[index unsignedIntegerValue]];
     }
-
+    
     // sushftw: not sure this is necessary
     //bring current view to front
-//    if ([itemViews count])
-//    {
-//        [contentView addSubview:[itemViews objectForKey:[NSNumber numberWithUnsignedInteger:self.currentItemIndex]]];
-//    }
+    //    if ([itemViews count])
+    //    {
+    //        [contentView addSubview:[itemViews objectForKey:[NSNumber numberWithUnsignedInteger:self.currentItemIndex]]];
+    //    }
     
     //lay out placeholders
     for (NSInteger i = 0; i < numberOfPlaceholders; i++)
@@ -361,20 +364,19 @@
     [self transformItemViews];
     
     // sushftw: i don't think changing width should count as scrolling
-//    if (prevItemWidth != itemWidth && [delegate respondsToSelector:@selector(carouselDidScroll:)])
-//    {
-//        [delegate carouselDidScroll:self];
-//    }
+    //    if (prevItemWidth != itemWidth && [delegate respondsToSelector:@selector(carouselDidScroll:)])
+    //    {
+    //        [delegate carouselDidScroll:self];
+    //    }
 }
 
 - (void) syncViews
 {        
     // set of all pages needed in buffer
 	NSMutableSet *newViews = [NSMutableSet set];
-    NSInteger numberOfItemsToShow = MIN(self.numberOfItems, self.maxNumberOfItemsToShow);
-	for(NSInteger i = 0; i < numberOfItemsToShow; i++)
+	for(NSInteger i = 0; i < self.numberOfItemsShown; i++)
 	{
-        NSInteger index = [self clampedIndex:(self.currentItemIndex - numberOfItemsToShow/2 + i)];
+        NSInteger index = [self clampedIndex:(self.currentItemIndex - self.numberOfItemsShown/2 + i)];
         [newViews addObject:[NSNumber numberWithUnsignedInteger:index]];
 	}
 	
@@ -398,17 +400,16 @@
         NSView* view = [itemViews objectForKey:rem];
         [view.superview removeFromSuperview];
         [itemViews removeObjectForKey:rem];
+        if ([dataSource respondsToSelector:@selector(carouselRemovedView:forIndex:)])
+        {
+            [dataSource carouselRemovedView:self forIndex:[rem integerValue]];
+        }
 	}
 	
 	// setup cards for those needing to be displayed
 	for(NSNumber *viewToDisplay in newViews)
 	{
-        NSView* view = [itemViewCache objectForKey:viewToDisplay];
-        if (view == nil)
-        {
-            view = [dataSource carousel:self viewForItemAtIndex:[viewToDisplay unsignedIntegerValue]];
-            [itemViewCache setObject:view forKey:viewToDisplay];
-        }
+        NSView* view = [dataSource carousel:self viewForItemAtIndex:[viewToDisplay unsignedIntegerValue]];
         if (view == nil)
         {
             view = [[[NSView alloc] init] autorelease];
@@ -454,8 +455,6 @@
         [view.superview removeFromSuperview];
     }
     
-    [itemViewCache removeAllObjects];
-    
     [self.itemViews removeAllObjects];
     [self.placeholderViews removeAllObjects];
     
@@ -478,7 +477,14 @@
 - (void)scrollToItemAtIndex:(NSUInteger)index animated:(BOOL)animated
 {	
     index = [self clampedIndex:index];
+    
+    if (fabs((scrollOffset) - (itemWidth * index)) < FLT_EPSILON)
+    { // no need to do anything
+        return;
+    }
+    
     previousItemIndex = self.currentItemIndex;
+    
     if ([self shouldWrap] && previousItemIndex == 0 && index == numberOfItems - 1)
     {
         scrollOffset = itemWidth * numberOfItems;
@@ -488,6 +494,7 @@
     {
         scrollOffset = -itemWidth;
     }
+    
     
     if (animated)
     {
@@ -509,38 +516,38 @@
     // sushftw: the efficient thing to do would be to change the cache entries
     // for all indexes > index, then call syncViews
     
-//    numberOfItems --;
-//    
-//    
-//    if (animated)
-//    {
-//        //        [NSView beginAnimations:nil context:nil];
-//        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
-//        //        [NSView setAnimationDuration:0.1];
-//        
-//        //        itemView.superview.alpha = 0.0;
-//        itemView.superview.layer.opacity = 0.0;
-//        //        [itemView.superview setHidden:YES];
-//        
-//        //[NSView commitAnimations];
-//        [itemView.superview performSelector:@selector(removeFromSuperview) withObject:nil afterDelay:0.1];
-//        
-//        //        [NSView beginAnimations:nil context:nil];
-//        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
-//        //        [NSView setAnimationDuration:0.4];
-//    }
-//    else
-//    {
-//        [itemView.superview removeFromSuperview];
-//    }
-//    
-//    [itemViews removeObjectForKey:indexKey];
-//    [self transformItemViews];
-//    
-//    //    if (animated)
-//    //    {
-//    //        [NSView commitAnimations];
-//    //    }
+    //    numberOfItems --;
+    //    
+    //    
+    //    if (animated)
+    //    {
+    //        //        [NSView beginAnimations:nil context:nil];
+    //        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
+    //        //        [NSView setAnimationDuration:0.1];
+    //        
+    //        //        itemView.superview.alpha = 0.0;
+    //        itemView.superview.layer.opacity = 0.0;
+    //        //        [itemView.superview setHidden:YES];
+    //        
+    //        //[NSView commitAnimations];
+    //        [itemView.superview performSelector:@selector(removeFromSuperview) withObject:nil afterDelay:0.1];
+    //        
+    //        //        [NSView beginAnimations:nil context:nil];
+    //        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
+    //        //        [NSView setAnimationDuration:0.4];
+    //    }
+    //    else
+    //    {
+    //        [itemView.superview removeFromSuperview];
+    //    }
+    //    
+    //    [itemViews removeObjectForKey:indexKey];
+    //    [self transformItemViews];
+    //    
+    //    //    if (animated)
+    //    //    {
+    //    //        [NSView commitAnimations];
+    //    //    }
 }
 
 
@@ -550,44 +557,44 @@
     // sushftw: the efficient thing to do would be to change the cache entries
     // for all indexes >= index, then call syncViews
     
-//    numberOfItems ++;
-//    
-//    
-//    NSView *itemView = [dataSource carousel:self viewForItemAtIndex:index];
-//    [(NSMutableArray *)itemViews insertObject:itemView atIndex:arrayIndex];
-//    [contentView addSubview:[self containView:itemView]];
-//    [self transformItemView:itemView atIndex:index];
-//    
-//    //    [itemView.superview setHidden:YES];
-//    itemView.superview.layer.opacity = 0.0;
-//    //itemView.superview.alpha = 0.0;
-//    
-//    if (animated)
-//    {
-//        //        [NSView beginAnimations:nil context:nil];
-//        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
-//        //        [NSView setAnimationDuration:0.4];
-//        [self transformItemViews];   
-//        //        [NSView commitAnimations];
-//        //        
-//        //        [NSView beginAnimations:nil context:nil];
-//        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
-//        //        [NSView setAnimationDelay:0.3];
-//        //        [NSView setAnimationDuration:0.1];
-//        
-//        //        [itemView.superview setHidden:NO];
-//        itemView.superview.layer.opacity = 1.0;
-//        //        itemView.superview.alpha = 1.0;
-//        
-//        //        [NSView commitAnimations];
-//    }
-//    else
-//    {
-//        [self transformItemViews]; 
-//        //        [itemView.superview setHidden:NO];
-//        itemView.superview.layer.opacity = 1.0;
-//        //        itemView.superview.alpha = 1.0;
-//    }
+    //    numberOfItems ++;
+    //    
+    //    
+    //    NSView *itemView = [dataSource carousel:self viewForItemAtIndex:index];
+    //    [(NSMutableArray *)itemViews insertObject:itemView atIndex:arrayIndex];
+    //    [contentView addSubview:[self containView:itemView]];
+    //    [self transformItemView:itemView atIndex:index];
+    //    
+    //    //    [itemView.superview setHidden:YES];
+    //    itemView.superview.layer.opacity = 0.0;
+    //    //itemView.superview.alpha = 0.0;
+    //    
+    //    if (animated)
+    //    {
+    //        //        [NSView beginAnimations:nil context:nil];
+    //        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
+    //        //        [NSView setAnimationDuration:0.4];
+    //        [self transformItemViews];   
+    //        //        [NSView commitAnimations];
+    //        //        
+    //        //        [NSView beginAnimations:nil context:nil];
+    //        //        [NSView setAnimationCurve:NSViewAnimationCurveEaseInOut];
+    //        //        [NSView setAnimationDelay:0.3];
+    //        //        [NSView setAnimationDuration:0.1];
+    //        
+    //        //        [itemView.superview setHidden:NO];
+    //        itemView.superview.layer.opacity = 1.0;
+    //        //        itemView.superview.alpha = 1.0;
+    //        
+    //        //        [NSView commitAnimations];
+    //    }
+    //    else
+    //    {
+    //        [self transformItemViews]; 
+    //        //        [itemView.superview setHidden:NO];
+    //        itemView.superview.layer.opacity = 1.0;
+    //        //        itemView.superview.alpha = 1.0;
+    //    }
 }
 
 - (void)didMoveToSuperview
@@ -630,7 +637,7 @@
     
     [self syncViews];
     
-    if (!scrolling && !decelerating && !isDragging && [delegate respondsToSelector:@selector(carouselStopped:)])
+    if (!scrolling && !decelerating && !isDragging && !didClick && [delegate respondsToSelector:@selector(carouselStopped:)])
     {
         [delegate carouselStopped:self];
     }
@@ -708,18 +715,47 @@
         currentVelocity = (translation / (thisTime - lastTime)) * factor;
         lastTime = thisTime;
         
-        scrollOffset -= translation * factor;
+        float translateAmount = translation * factor;
+        scrollOffset -= translateAmount;
+        
         [self didScroll];
     }
 }
 
 - (void) mouseDown:(NSEvent *)theEvent
-{    
+{   
     [self userStartedTranslating:[theEvent timestamp]];
 }
 
 - (void) mouseUp:(NSEvent *)theEvent
 {
+    if ([theEvent clickCount] == 1)
+    {
+        didClick = YES;
+        
+        if(itemViews.count > 0 && [delegate respondsToSelector:@selector(carouselCurrentItemTapped:location:)])
+        {
+            NSView* currItemView = [itemViews objectForKey:[NSNumber numberWithInteger:self.currentItemIndex]];
+            
+            NSPoint eventLocation = [theEvent locationInWindow];
+            eventLocation = [self convertPoint:eventLocation fromView:nil];
+            // the view's origin is set to center, so we move to click point to account for this
+            eventLocation = NSMakePoint(eventLocation.x + (currItemView.bounds.size.width)/2.0, eventLocation.y + (currItemView.bounds.size.height)/2.0);
+            
+            //        NSLog(@"clicked %@, card frame: %@", NSStringFromPoint(eventLocation), NSStringFromRect(currItemView.superview.frame));
+            
+            if (NSPointInRect(eventLocation, currItemView.superview.frame))
+            {
+                eventLocation = [currItemView convertPoint:eventLocation fromView:self];
+                [delegate carouselCurrentItemTapped:self location:eventLocation];
+            }
+        }
+    }
+    else
+    {
+        didClick = NO;
+    }
+    
     [self userFinishedTranslating];
 }
 
@@ -780,7 +816,7 @@
         }
     }
 }
-    
+
 
 #pragma mark -
 #pragma mark Memory management
@@ -790,7 +826,6 @@
     [timer invalidate];
     [contentView release];
     [itemViews release];
-    [itemViewCache release];
     [placeholderViews release];
     [super dealloc];
 }

@@ -30,36 +30,39 @@ iCarouselType;
     id<iCarouselMacDelegate> delegate;
     id<iCarouselMacDataSource> dataSource;
     iCarouselType type;
+    
     float perspective;
+    float decelerationRate;
+    
     NSInteger numberOfItems;
     NSInteger numberOfPlaceholders;
     NSInteger maxNumberOfItemsToShow;
+    NSUInteger numberOfItemsShown;
+    BOOL scrollEnabled;
+    BOOL bounces;
     
     NSView* contentView;
     NSMutableDictionary* itemViews;
-    NSCache* itemViewCache;
     NSInteger itemsShownIndex;
     NSMutableArray* placeholderViews;
     NSInteger previousItemIndex;
+    float itemWidth;
 
-    float currentVelocity;
     NSTimer* timer;
     NSTimeInterval previousTime;
-    BOOL decelerating;
-    BOOL scrollEnabled;
-    float decelerationRate;
-    BOOL bounces;
-    BOOL isDragging;
+    // hack.. records click (as opposed to down/drag/up) so carouselStopped: msg is not sent to delegate
     NSTimeInterval startTime;
-    float previousTranslation;
     NSTimer* scrollWheelTimer;
     
-    
-    float itemWidth;
     float scrollOffset;
     float startOffset;
     float endOffset;
+    
+    BOOL decelerating;
+    BOOL isDragging;
     BOOL scrolling;
+    float currentVelocity;
+    BOOL didClick;
     
     NSTimeInterval lastTime;
 }
@@ -74,6 +77,7 @@ iCarouselType;
 @property (nonatomic, readonly) NSInteger numberOfItems;
 @property (nonatomic, readonly) NSInteger numberOfPlaceholders;
 @property (nonatomic, assign) NSInteger maxNumberOfItemsToShow;
+@property (nonatomic, readonly) NSUInteger numberOfItemsShown;
 @property (nonatomic, readonly) NSInteger currentItemIndex;
 @property (nonatomic, retain, readonly) NSMutableDictionary *itemViews;
 @property (nonatomic, retain, readonly) NSMutableArray *placeholderViews;
@@ -94,6 +98,7 @@ iCarouselType;
 
 @optional
 
+- (void)carouselRemovedView:(iCarouselMac*)carousel forIndex:(NSInteger)index;
 - (NSUInteger)numberOfPlaceholdersInCarousel:(iCarouselMac *)carousel;
 - (NSView *)carouselPlaceholderView:(iCarouselMac *)carousel;
 
@@ -104,9 +109,12 @@ iCarouselType;
 
 @optional
 
+// would like to know whether user is causing the scroll or not
+
 - (void)carouselDidScroll:(iCarouselMac *)carousel;
 - (void)carouselCurrentItemIndexUpdated:(iCarouselMac *)carousel;
 - (void)carouselStopped:(iCarouselMac *)carousel;
+- (void)carouselCurrentItemTapped:(iCarouselMac *)carousel location:(NSPoint)location;
 
 - (float)carouselItemWidth:(iCarouselMac *)carousel;
 - (BOOL)carouselShouldWrap:(iCarouselMac *)carousel;
