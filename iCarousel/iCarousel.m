@@ -1,6 +1,8 @@
 //
 //  iCarousel.m
 //
+//  Version 1.5.2
+//
 //  Created by Nick Lockwood on 01/04/2011.
 //  Copyright 2010 Charcoal Design. All rights reserved.
 //
@@ -26,26 +28,17 @@
 //  misrepresented as being the original software.
 //
 //  3. This notice may not be removed or altered from any source distribution.
-
+//
 
 #import "iCarousel.h"
 
 
-#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
-
-#define PointMake CGPointMake
-#define RectMake CGRectMake
-
-#else
-
-#define PointMake NSMakePoint
-#define RectMake NSMakeRect
-
-#endif
-
-
-#define SCROLL_DURATION 0.4
-#define INSERT_DURATION 0.4
+#define SCROLL_DURATION 0.4f
+#define INSERT_DURATION 0.4f
+#define DECELERATE_THRESHOLD 0.1f
+#define SCROLL_SPEED_THRESHOLD 2.0f
+#define SCROLL_DISTANCE_THRESHOLD 0.1f
+#define DECELERATION_MULTIPLIER 30.0f
 
 
 #ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
@@ -55,9 +48,9 @@
 #endif
 
 @property (nonatomic, retain) UIView *contentView;
-@property (nonatomic, retain) NSArray *itemViews;
-@property (nonatomic, retain) NSArray *placeholderViews;
+@property (nonatomic, retain) NSDictionary *itemViews;
 @property (nonatomic, assign) NSInteger previousItemIndex;
+@property (nonatomic, assign) NSInteger numberOfPlaceholdersToShow;
 @property (nonatomic, assign) float itemWidth;
 @property (nonatomic, assign) float scrollOffset;
 @property (nonatomic, assign) float startOffset;
@@ -65,16 +58,22 @@
 @property (nonatomic, assign) NSTimeInterval scrollDuration;
 @property (nonatomic, assign) BOOL scrolling;
 @property (nonatomic, assign) NSTimeInterval startTime;
-@property (nonatomic, assign) float currentVelocity;
-@property (nonatomic, assign) NSTimer *timer;
-@property (nonatomic, assign) NSTimeInterval previousTime;
+@property (nonatomic, assign) float startVelocity;
+@property (nonatomic, assign) id timer;
 @property (nonatomic, assign) BOOL decelerating;
 @property (nonatomic, assign) float previousTranslation;
 @property (nonatomic, assign) BOOL shouldWrap;
+@property (nonatomic, assign) BOOL dragging;
+@property (nonatomic, assign) float scrollSpeed;
+@property (nonatomic, assign) NSTimeInterval toggleTime;
 
 - (void)layOutItemViews;
+- (UIView *)loadViewAtIndex:(NSInteger)index;
 - (NSInteger)clampedIndex:(NSInteger)index;
+- (float)clampedOffset:(float)offset;
 - (void)transformItemView:(UIView *)view atIndex:(NSInteger)index;
+- (void)startAnimation;
+- (void)stopAnimation;
 - (void)didScroll;
 
 @end
@@ -88,18 +87,19 @@
 @synthesize perspective;
 @synthesize numberOfItems;
 @synthesize numberOfPlaceholders;
+@synthesize numberOfPlaceholdersToShow;
+@synthesize numberOfVisibleItems;
 @synthesize contentView;
 @synthesize itemViews;
-@synthesize placeholderViews;
 @synthesize previousItemIndex;
 @synthesize itemWidth;
 @synthesize scrollOffset;
-@synthesize currentVelocity;
+@synthesize startVelocity;
 @synthesize timer;
-@synthesize previousTime;
 @synthesize decelerating;
 @synthesize scrollEnabled;
 @synthesize decelerationRate;
+@synthesize bounceDistance;
 @synthesize bounces;
 @synthesize contentOffset;
 @synthesize viewpointOffset;
@@ -110,6 +110,12 @@
 @synthesize scrolling;
 @synthesize previousTranslation;
 @synthesize shouldWrap;
+@synthesize dragging;
+@synthesize scrollSpeed;
+@synthesize toggleTime;
+@synthesize toggle;
+@synthesize stopAtItemBoundary;
+@synthesize scrollToItemBoundary;
 
 #ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
 
@@ -117,18 +123,26 @@
 
 #endif
 
+
+#pragma mark -
+#pragma mark Initialisation
+
 - (void)setup
 {
-    perspective = -1.0/500.0;
-    decelerationRate = 0.9;
+    perspective = -1.0f/500.0f;
+    decelerationRate = 0.95f;
     scrollEnabled = YES;
     bounces = YES;
-    scrollOffset = 0;
+    scrollOffset = 0.0f;
     contentOffset = CGSizeZero;
 	viewpointOffset = CGSizeZero;
+    numberOfVisibleItems = 21;
 	shouldWrap = NO;
-    
-	self.itemViews = [NSMutableArray array];
+    scrollSpeed = 1.0f;
+    bounceDistance = 1.0f;
+    toggle = 0.0f;
+    stopAtItemBoundary = YES;
+    scrollToItemBoundary = YES;
     
     contentView = [[UIView alloc] initWithFrame:self.bounds];
     
@@ -148,6 +162,7 @@
 #endif
     
     [self addSubview:contentView];
+	[self reloadData];
 }
 
 - (id)initWithCoder:(NSCoder *)aDecoder
@@ -155,7 +170,6 @@
 	if ((self = [super initWithCoder:aDecoder]))
     {
 		[self setup];
-        [self reloadData];
 #ifndef __IPHONE_OS_VERSION_MAX_ALLOWED
         [self viewDidMoveToSuperview]; 
 #endif
@@ -181,10 +195,7 @@
     if (dataSource != _dataSource)
     {
         dataSource = _dataSource;
-		if (dataSource)
-		{
-			[self reloadData];
-		}
+		[self reloadData];
     }
 }
 
@@ -193,10 +204,7 @@
     if (delegate != _delegate)
     {
         delegate = _delegate;
-		if (delegate)
-		{
-			[self reloadData];
-		}
+		[self layOutItemViews];
     }
 }
 
@@ -209,8 +217,102 @@
     }
 }
 
+- (void)setNumberOfVisibleItems:(NSInteger)_numberOfVisibleItems
+{
+    if (numberOfVisibleItems != _numberOfVisibleItems)
+    {
+        numberOfVisibleItems = _numberOfVisibleItems;
+		[self layOutItemViews];
+    }
+}
+
+
+#pragma mark -
+#pragma mark View management
+
+- (NSArray *)visibleIndices
+{
+    return [[itemViews allKeys] sortedArrayUsingSelector:@selector(compare:)];
+}
+
+- (NSSet *)visibleViews
+{
+    return [NSSet setWithArray:[itemViews allValues]];
+}
+
+- (UIView *)viewAtIndex:(NSInteger)index
+{
+    return [itemViews objectForKey:[NSNumber numberWithInteger:index]];
+}
+
+- (UIView *)currentView
+{
+    return [self viewAtIndex:self.currentItemIndex];
+}
+
+- (void)setView:(UIView *)view forIndex:(NSInteger)index
+{
+    [(NSMutableDictionary *)itemViews setObject:view forKey:[NSNumber numberWithInteger:index]];
+}
+
+- (void)removeViewAtIndex:(NSInteger)index
+{
+    NSMutableDictionary *newItemViews = [NSMutableDictionary dictionaryWithCapacity:[itemViews count] - 1];
+    for (NSNumber *number in [self visibleIndices])
+    {
+        NSInteger i = [number integerValue];
+        if (i < index)
+        {
+            [newItemViews setObject:[itemViews objectForKey:number] forKey:number];
+        }
+        else if (i > index)
+        {
+            [newItemViews setObject:[itemViews objectForKey:number] forKey:[NSNumber numberWithInteger:i - 1]];
+        }
+    }
+    self.itemViews = newItemViews;
+}
+
+- (void)insertView:(UIView *)view atIndex:(NSInteger)index
+{
+    NSMutableDictionary *newItemViews = [NSMutableDictionary dictionaryWithCapacity:[itemViews count] - 1];
+    for (NSNumber *number in [self visibleIndices])
+    {
+        NSInteger i = [number integerValue];
+        if (i < index)
+        {
+            [newItemViews setObject:[itemViews objectForKey:number] forKey:number];
+        }
+        else
+        {
+            [newItemViews setObject:[itemViews objectForKey:number] forKey:[NSNumber numberWithInteger:i + 1]];
+        }
+    }
+    if (view)
+    {
+        [self setView:view forIndex:index];
+    }
+    self.itemViews = newItemViews;
+}
+
+- (NSInteger)indexOfView:(UIView *)view
+{
+    for (NSNumber *number in [itemViews allKeys])
+    {
+        if ([itemViews objectForKey:number] == view)
+        {
+            return [number integerValue];
+        }
+    }
+    return NSNotFound;
+}
+
+
+#pragma mark -
+#pragma mark View layout
+
 - (CATransform3D)transformForItemView:(UIView *)view withOffset:(float)offset
-{    
+{
     //set up base transform
     CATransform3D transform = CATransform3DIdentity;
     transform.m34 = perspective;
@@ -220,15 +322,15 @@
     {
         case iCarouselTypeLinear:
         {
-            return CATransform3DTranslate(transform, offset * itemWidth, 0, 0);
+            return CATransform3DTranslate(transform, offset * itemWidth, 0.0f, 0.0f);
         }
         case iCarouselTypeRotary:
         case iCarouselTypeInvertedRotary:
         {
-			NSInteger count = numberOfItems + (shouldWrap? 0: numberOfPlaceholders);
-
-            float arc = M_PI * 2.0;
-            float radius = itemWidth / 2.0 / tan(arc/2.0/count);
+			NSInteger count = numberOfItems + (shouldWrap? 0: numberOfPlaceholdersToShow);
+            
+            float arc = M_PI * 2.0f;
+            float radius = itemWidth / 2.0f / tanf(arc/2.0f/count);
             float angle = offset / count * arc;
             
             if (type == iCarouselTypeInvertedRotary)
@@ -238,15 +340,15 @@
                 angle = -angle;
             }
             
-            return CATransform3DTranslate(transform, radius * sin(angle), 0, radius * cos(angle) - radius);
+            return CATransform3DTranslate(transform, radius * sin(angle), 0.0f, radius * cos(angle) - radius);
         }
         case iCarouselTypeCylinder:
         case iCarouselTypeInvertedCylinder:
         {
-			NSInteger count = numberOfItems + (shouldWrap? 0: numberOfPlaceholders);
+			NSInteger count = numberOfItems + (shouldWrap? 0: numberOfPlaceholdersToShow);
             
-			float arc = M_PI * 2.0;
-            float radius = itemWidth / 2.0 / tan(arc/2.0/count);
+			float arc = M_PI * 2.0f;
+            float radius = itemWidth / 2.0f / tanf(arc/2.0f/count);
             float angle = offset / count * arc;
             
             if (type == iCarouselTypeInvertedCylinder)
@@ -256,20 +358,55 @@
                 angle = -angle;
             }
             
-            transform = CATransform3DTranslate(transform, 0, 0, -radius);
-            transform = CATransform3DRotate(transform, angle, 0, 1, 0);
-            return CATransform3DTranslate(transform, 0, 0, radius);
+            transform = CATransform3DTranslate(transform, 0.0f, 0.0f, -radius);
+            transform = CATransform3DRotate(transform, angle, 0.0f, 1.0f, 0.0f);
+            return CATransform3DTranslate(transform, 0.0f, 0.0f, radius + 0.01f);
         }
         case iCarouselTypeCoverFlow:
+        case iCarouselTypeCoverFlow2:
         {
-            float tilt = 0.9;
-            float spacing = 0.25;
+            float tilt = 0.9f;
+            float spacing = 0.25f; // should be ~ 1/scrollSpeed;
+            float clampedOffset = fmaxf(-1.0f, fminf(1.0f, offset));
             
-            float clampedOffset = fmax(-1.0, fmin(1.0, offset));
-            float x = (clampedOffset * 0.5 * tilt + offset * spacing) * itemWidth;
-            float z = fabs(clampedOffset) * -itemWidth * 0.5;
-            transform = CATransform3DTranslate(transform, x, 0, z);
-            return CATransform3DRotate(transform, -clampedOffset * M_PI_2 * tilt, 0, 1, 0);
+            if (type == iCarouselTypeCoverFlow2)
+            {
+                if (toggle >= 0.0f)
+                {
+                    if (offset < -0.5f)
+                    {
+                        clampedOffset = -1.0f;
+                    }
+                    else if (offset < 0.5f)
+                    {
+                        clampedOffset = -toggle;
+                    }
+                    else if (offset < 1.5f)
+                    {
+                        clampedOffset = 1.0f - toggle;
+                    }
+                }
+                else
+                {
+                    if (offset > 0.5f)
+                    {
+                        clampedOffset = 1.0f;
+                    }
+                    else if (offset > -0.5f)
+                    {
+                        clampedOffset = -toggle;
+                    }
+                    else if (offset > -1.5f)
+                    {
+                        clampedOffset = - 1.0f - toggle;
+                    }
+                }
+            }
+            
+            float x = (clampedOffset * 0.5f * tilt + offset * spacing) * itemWidth;
+            float z = fabsf(clampedOffset) * -itemWidth * 0.5f;
+            transform = CATransform3DTranslate(transform, x, 0.0f, z);
+            return CATransform3DRotate(transform, -clampedOffset * M_PI_2 * tilt, 0.0f, 1.0f, 0.0f);
         }
         case iCarouselTypeCustom:
         default:
@@ -279,7 +416,6 @@
     }
 }
 
-
 NSInteger compareViewDepth(id obj1, id obj2, void *context)
 {
     iCarousel *carousel = context;
@@ -288,66 +424,33 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
     float z1 = t1.m13 + t1.m23 + t1.m33 + t1.m43;
     float z2 = t2.m13 + t2.m23 + t2.m33 + t2.m43;
     float difference = z1 - z2;
-    if (difference == 0)
+    if (difference == 0.0f)
     {
-        CATransform3D t3 = ((UIView *)[carousel.itemViews
-            objectAtIndex:carousel.currentItemIndex]).superview.layer.transform;
+        CATransform3D t3 = [carousel currentView].superview.layer.transform;
         float x1 = t1.m11 + t1.m21 + t1.m31 + t1.m41;
         float x2 = t2.m11 + t2.m21 + t2.m31 + t2.m41;
         float x3 = t3.m11 + t3.m21 + t3.m31 + t3.m41;
-        difference = fabs(x2 - x3) - fabs(x1 - x3);
+        difference = fabsf(x2 - x3) - fabsf(x1 - x3);
     }
-    return (difference < 0)? NSOrderedAscending: NSOrderedDescending;
+    return (difference < 0.0f)? NSOrderedAscending: NSOrderedDescending;
 }
 
 - (void)depthSortViews
 {
-    NSArray *allViews = [itemViews arrayByAddingObjectsFromArray:placeholderViews];
-    for (UIView *view in [allViews sortedArrayUsingFunction:compareViewDepth context:self])
+    
+#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
+    
+    for (UIView *view in [[itemViews allValues] sortedArrayUsingFunction:compareViewDepth context:self])
     {
         [contentView addSubview:view.superview];
     }
-}
-
-- (UIView *)containView:(UIView *)view
-{
-	
-#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
-
-    UIControl *container = [[[UIControl alloc] initWithFrame:view.frame] autorelease];
-    [container addTarget:self action:@selector(didTap:) forControlEvents:UIControlEventTouchUpInside];
-    [container addSubview:view];
-    return container;
-    
-#else
-    
-    NSView *container = [[[NSView alloc] initWithFrame:view.frame] autorelease];
-
-#endif
-    
-    [container addSubview:view];
-    return container;
-}
-
-- (void)transformItemView:(UIView *)view atIndex:(NSInteger)index
-{
-    view.superview.bounds = view.bounds;
-    
-#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
-    
-	view.center = CGPointMake(view.bounds.size.width/2.0, view.bounds.size.height/2.0);
-    view.superview.center = CGPointMake(self.bounds.size.width/2.0 + contentOffset.width,
-										self.bounds.size.height/2.0 + contentOffset.height);
-    
-#else
-    
-	[view setFrameOrigin:NSMakePoint(0, 0)];
-    [view.superview setFrameOrigin:NSMakePoint(self.bounds.size.width/2.0 + contentOffset.width,
-											   self.bounds.size.height/2.0 + contentOffset.height)];
-    view.superview.layer.anchorPoint = CGPointMake(0.5, 0.5);
     
 #endif
     
+}
+
+- (float)offsetForIndex:(NSInteger)index
+{
     //calculate relative position
     float itemOffset = scrollOffset / itemWidth;
     float offset = index - itemOffset;
@@ -362,75 +465,113 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
             offset += numberOfItems;
         }
     }
+    return offset;
+}
+
+- (UIView *)containView:(UIView *)view
+{
+    UIView *container = [[[UIView alloc] initWithFrame:view.frame] autorelease];
+	
+#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
+    
+    //add tap gesture recogniser
+    UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self
+                                                                                 action:@selector(didTap:)];
+    tapGesture.delegate = self;
+    [container addGestureRecognizer:tapGesture];
+    [tapGesture release];
+    
+#endif
+    
+    [container addSubview:view];
+    return container;
+}
+
+- (void)transformItemView:(UIView *)view atIndex:(NSInteger)index
+{
+    view.superview.bounds = view.bounds;
+    
+#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
+    
+	view.center = CGPointMake(view.bounds.size.width/2.0f, view.bounds.size.height/2.0f);
+    view.superview.center = CGPointMake(self.bounds.size.width/2.0f + contentOffset.width,
+										self.bounds.size.height/2.0f + contentOffset.height);
+    
+#else
+    
+	[view setFrameOrigin:NSMakePoint(0.0f, 0.0f)];
+    [view.superview setFrameOrigin:NSMakePoint(self.bounds.size.width/2.0f + contentOffset.width,
+											   self.bounds.size.height/2.0f + contentOffset.height)];
+    view.superview.layer.anchorPoint = CGPointMake(0.5f, 0.5f);
+    
+#endif
+    
+    //special-case logic for iCarouselTypeCoverFlow2
+    float offset = [self offsetForIndex:index];
+    float clampedOffset = fmaxf(-1.0f, fminf(1.0f, offset));
+    if (decelerating || (scrollOffset - [self clampedOffset:scrollOffset]) != 0.0f)
+    {
+        if (offset > 0)
+        {
+            toggle = (offset <= 0.5f)? -clampedOffset: (1.0f - clampedOffset);
+        }
+        else
+        {
+            toggle = (offset >= -0.5f)? -clampedOffset: (- 1.0f - clampedOffset);
+        }
+    }
     
     //transform view
     CATransform3D transform = [self transformForItemView:view withOffset:offset];
-    view.superview.layer.transform = CATransform3DTranslate(transform, -viewpointOffset.width, -viewpointOffset.height, 0);
-
-#ifndef __IPHONE_OS_VERSION_MAX_ALLOWED
-    
-    //remove transform and transition animations
-    [view.superview.layer removeAllAnimations];
-    
-#endif
+    view.superview.layer.transform = CATransform3DTranslate(transform, -viewpointOffset.width, -viewpointOffset.height, 0.0f);
     
 	//hide containers for invisible views
-    [view.superview setHidden:([view isHidden] || view.layer.opacity < 0.001)];
+    [view.superview setHidden:([view isHidden] || view.layer.opacity < 0.001f)];
 }
 
 #ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
+
 - (void)layoutSubviews
-#else
-- (void)resizeSubviewsWithOldSize:(NSSize)oldSize
-#endif
 {
     contentView.frame = self.bounds;
     [self layOutItemViews];
 }
 
+#else
+
+- (void)resizeSubviewsWithOldSize:(NSSize)oldSize
+{
+	[CATransaction setDisableActions:YES];
+    contentView.frame = self.bounds;
+    [self layOutItemViews];
+	[CATransaction setDisableActions:NO];
+}
+
+#endif
+
 - (void)transformItemViews
 {
-    //lay out items
-	for (NSUInteger i = 0; i < numberOfItems; i++)
+	for (NSNumber *number in itemViews)
     {
-		UIView *view = [itemViews objectAtIndex:i];
-		[self transformItemView:view atIndex:i];
+        NSInteger index = [number integerValue];
+		UIView *view = [itemViews objectForKey:number];
+		[self transformItemView:view atIndex:index];
 #ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
-        view.userInteractionEnabled = (i == self.currentItemIndex);
+        view.userInteractionEnabled = (!centerItemWhenSelected || index == self.currentItemIndex);
 #endif
-	}
-    
-    //lay out placeholders
-    for (NSInteger i = 0; i < numberOfPlaceholders; i++)
-    {
-		UIView *view = [placeholderViews objectAtIndex:i];
-		if (i < floor(numberOfPlaceholders/2))
-		{
-			//left placeholder
-			[self transformItemView:view atIndex:-(i+1)];
-		}
-		else
-		{
-			//right placeholder
-			[self transformItemView:view atIndex:i - floor(numberOfPlaceholders/2) + numberOfItems];
-		}
-		[view.superview setHidden:shouldWrap];
 	}
 }
 
 - (void)layOutItemViews
 {
+	//bail out if not set up yet
+	if (!dataSource || !contentView)
+	{
+		return;
+	}
+	
     //record current item width
     float prevItemWidth = itemWidth;
-    
-    //set scrollview size
-	if ([delegate respondsToSelector:@selector(carouselItemWidth:)])
-    {
-		itemWidth = [delegate carouselItemWidth:self];
-	}
-
-    //adjust scroll offset
-    scrollOffset = scrollOffset / prevItemWidth * itemWidth;
 	
 	//update wrap
 	if ([delegate respondsToSelector:@selector(carouselShouldWrap:)])
@@ -456,78 +597,178 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
 			}
 		}
 	}
-        
-    //transform views
-    [self transformItemViews];
-	
-    //call delegate
-	if (prevItemWidth != itemWidth && [delegate respondsToSelector:@selector(carouselDidScroll:)])
+    
+    //no placeholders on wrapped carousels
+	numberOfPlaceholdersToShow = shouldWrap? 0: numberOfPlaceholders;
+    
+    //set item width
+	if ([delegate respondsToSelector:@selector(carouselItemWidth:)])
     {
-		[delegate carouselDidScroll:self];
+		itemWidth = [delegate carouselItemWidth:self];
 	}
+	else if (numberOfItems > 0)
+	{
+		if ([itemViews count] == 0)
+		{
+			[self loadViewAtIndex:0];
+		}
+		itemWidth = [[[itemViews allValues] lastObject] bounds].size.width;
+	}
+    
+    //update scroll speed
+    if ([delegate respondsToSelector:@selector(carouselScrollSpeed:)])
+    {
+        scrollSpeed = [delegate carouselScrollSpeed:self];
+    }
+    else
+    {
+        switch (type)
+		{
+            case iCarouselTypeCoverFlow:
+			case iCarouselTypeCoverFlow2:
+			{
+				scrollSpeed = 4.0f;
+				break;
+			}
+			default:
+			{
+				scrollSpeed = 1.0f;
+				break;
+			}
+		}
+    }
+    
+    //adjust scroll offset
+	if (prevItemWidth)
+	{
+		scrollOffset = scrollOffset / prevItemWidth * itemWidth;
+	}
+	else
+	{
+		//prevent false index changed event
+		previousItemIndex = self.currentItemIndex;
+	}
+    
+    //update views
+    [self didScroll];
+}
+
+
+#pragma mark -
+#pragma mark View loading
+
+- (UIView *)loadViewAtIndex:(NSInteger)index
+{
+#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
+    [UIView setAnimationsEnabled:NO];
+#endif
+    UIView *view = nil;
+    if (index < 0)
+    {
+        view = [dataSource carousel:self placeholderViewAtIndex:(int)ceilf((float)numberOfPlaceholdersToShow/2.0f) + index];
+    }
+    else if (index >= numberOfItems)
+    {
+        view = [dataSource carousel:self placeholderViewAtIndex:numberOfPlaceholdersToShow/2.0f + index - numberOfItems];
+    }
+    else
+    {
+        view = [dataSource carousel:self viewForItemAtIndex:index];
+    }
+    if (view == nil)
+    {
+        view = [[[UIView alloc] init] autorelease];
+    }
+    [self setView:view forIndex:index];
+    [contentView addSubview:[self containView:view]];
+    [self transformItemView:view atIndex:index];
+#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
+    [UIView setAnimationsEnabled:YES];
+#endif
+    return view;
+}
+
+- (void)loadUnloadViews
+{
+    //calculate visible view indices
+    NSMutableSet *visibleIndices = [NSMutableSet setWithCapacity:numberOfVisibleItems];
+    NSInteger min = -(int)ceilf((float)numberOfPlaceholdersToShow/2.0f);
+    NSInteger max = numberOfItems - 1 + numberOfPlaceholdersToShow/2;
+    NSInteger count = MIN(numberOfVisibleItems, numberOfItems + numberOfPlaceholdersToShow);
+    NSInteger offset = self.currentItemIndex - numberOfVisibleItems/2;
+    offset = MAX(min, MIN(max - count + 1, offset));
+    for (NSInteger i = 0; i < count; i++)
+    {
+        [visibleIndices addObject:[NSNumber numberWithInteger:i + offset]];
+    }
+    
+    //remove offscreen views
+    for (NSNumber *number in [itemViews allKeys])
+    {
+        if (![visibleIndices containsObject:number])
+        {
+            UIView *view = [itemViews objectForKey:number];
+            [view.superview removeFromSuperview];
+            [(NSMutableDictionary *)itemViews removeObjectForKey:number];
+        }
+    }
+    
+    //add onscreen views
+    for (NSNumber *number in visibleIndices)
+    {
+        UIView *view = [itemViews objectForKey:number];
+        if (view == nil)
+        {
+            [self loadViewAtIndex:[number integerValue]];
+        }
+    }
 }
 
 - (void)reloadData
 {
-	//make a note of current index
-	previousItemIndex = self.currentItemIndex;
-	
+	//bail out if not set up yet
+	if (!dataSource || !contentView)
+	{
+		return;
+	}
+
 	//remove old views
-	for (UIView *view in [itemViews arrayByAddingObjectsFromArray:placeholderViews])
+    for (UIView *view in self.visibleViews)
     {
 		[view.superview removeFromSuperview];
 	}
-	
-	//load new views
-	numberOfItems = [dataSource numberOfItemsInCarousel:self];
-	self.itemViews = [NSMutableArray arrayWithCapacity:numberOfItems];
-	for (NSUInteger i = 0; i < numberOfItems; i++)
-    {
-        UIView *view = [dataSource carousel:self viewForItemAtIndex:i];
-        if (view == nil)
-        {
-			view = [[[UIView alloc] init] autorelease];
-        }
-		[(NSMutableArray *)itemViews addObject:view];
-        [contentView addSubview:[self containView:view]];
-	}
-    
-    //load placeholders
+	self.itemViews = [NSMutableDictionary dictionary];
+   
+    //get number of items and placeholders
+    numberOfItems = [dataSource numberOfItemsInCarousel:self];
     if ([dataSource respondsToSelector:@selector(numberOfPlaceholdersInCarousel:)])
     {
         numberOfPlaceholders = [dataSource numberOfPlaceholdersInCarousel:self];
-        self.placeholderViews = [NSMutableArray arrayWithCapacity:numberOfPlaceholders];
-        for (NSUInteger i = 0; i < numberOfPlaceholders; i++)
-        {
-            UIView *view = [dataSource carousel:self placeholderViewAtIndex:i];
-            if (view == nil)
-            {
-                view = [[[UIView alloc] init] autorelease];
-            }
-            [(NSMutableArray *)placeholderViews addObject:view];
-            [contentView addSubview:[self containView:view]];
-        }
     }
-    
-    //set item width (may be overidden by delegate)
-    itemWidth = [([itemViews count]? [itemViews objectAtIndex:0]: self) bounds].size.width;
 	
     //layout views
-	previousItemIndex = [self clampedIndex:previousItemIndex];
-	scrollOffset = itemWidth * previousItemIndex;
+    [CATransaction setDisableActions:YES];
+    decelerating = NO;
+    scrolling = NO;
+    dragging = NO;
     [self layOutItemViews];
-	[self depthSortViews];
+	[self performSelector:@selector(depthSortViews) withObject:nil afterDelay:0.0f];
+    [CATransaction setDisableActions:NO];
 }
+
+
+#pragma mark -
+#pragma mark Scrolling
 
 - (NSInteger)clampedIndex:(NSInteger)index
 {
-    if (numberOfItems == 0)
+    if (shouldWrap)
     {
-        return 0;
-    }
-    else if (shouldWrap)
-    {
-        return index - floor((float)index / (float)numberOfItems) * numberOfItems;
+        if (numberOfItems == 0)
+        {
+            return 0;
+        }
+        return index - floorf((float)index / (float)numberOfItems) * numberOfItems;
     }
     else
     {
@@ -537,35 +778,54 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
 
 - (float)clampedOffset:(float)offset
 {
-    if (numberOfItems == 0)
+    if (shouldWrap)
     {
-        return 0;
-    }
-    else if (shouldWrap)
-    {
+        if (numberOfItems == 0)
+        {
+            return 0;
+        }
 		float contentWidth = numberOfItems * itemWidth;
-        return offset - floor(offset / contentWidth) * contentWidth;
+		return offset - floorf(offset / contentWidth) * contentWidth;
     }
     else
     {
-        return fmin(fmax(0.0, scrollOffset), numberOfItems * itemWidth - itemWidth);
+        return fminf(fmaxf(0.0f, offset), numberOfItems * itemWidth - itemWidth);
     }
 }
 
 - (NSInteger)currentItemIndex
 {	
-    return [self clampedIndex:round(scrollOffset / itemWidth)];
+    return itemWidth? [self clampedIndex:roundf(scrollOffset / itemWidth)]: 0;
 }
 
 - (NSInteger)minScrollDistanceFromIndex:(NSInteger)fromIndex toIndex:(NSInteger)toIndex
 {
 	NSInteger directDistance = toIndex - fromIndex;
-	NSInteger wrappedDistance = MIN(toIndex, fromIndex) + numberOfItems - MAX(toIndex, fromIndex);
-	if (fromIndex < toIndex)
-	{
-		wrappedDistance = -wrappedDistance;
-	}
-	return (ABS(directDistance) <= ABS(wrappedDistance))? directDistance: wrappedDistance;
+    if (shouldWrap)
+    {
+        NSInteger wrappedDistance = MIN(toIndex, fromIndex) + numberOfItems - MAX(toIndex, fromIndex);
+        if (fromIndex < toIndex)
+        {
+            wrappedDistance = -wrappedDistance;
+        }
+        return (ABS(directDistance) <= ABS(wrappedDistance))? directDistance: wrappedDistance;
+    }
+    return directDistance;
+}
+
+- (float)minScrollDistanceFromOffset:(float)fromOffset toOffset:(float)toOffset
+{
+	float directDistance = toOffset - fromOffset;
+    if (shouldWrap)
+    {
+        float wrappedDistance = fminf(toOffset, fromOffset) + numberOfItems*itemWidth - fmaxf(toOffset, fromOffset);
+        if (fromOffset < toOffset)
+        {
+            wrappedDistance = -wrappedDistance;
+        }
+        return (fabsf(directDistance) <= fabsf(wrappedDistance))? directDistance: wrappedDistance;
+    }
+    return directDistance;
 }
 
 - (void)scrollByNumberOfItems:(NSInteger)itemCount duration:(NSTimeInterval)duration
@@ -576,27 +836,42 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
         startTime = CACurrentMediaTime();
         startOffset = scrollOffset;
 		scrollDuration = duration;
-		previousItemIndex = self.currentItemIndex;
-		if (shouldWrap)
-		{
-			endOffset = itemWidth * (previousItemIndex + itemCount);
-		}
+		previousItemIndex = roundf(scrollOffset/itemWidth);
+        if (itemCount > 0)
+        {
+            endOffset = (floorf(startOffset / itemWidth) + itemCount) * itemWidth;
+        }
+        else if (itemCount < 0)
+        {
+            endOffset = (ceilf(startOffset / itemWidth) + itemCount) * itemWidth;
+        }
         else
+        {
+            endOffset = (roundf(startOffset / itemWidth) + itemCount) * itemWidth;
+        }
+		if (!shouldWrap)
 		{
-			endOffset = itemWidth * [self clampedIndex:previousItemIndex + itemCount];
+			endOffset = [self clampedOffset:endOffset];
 		}
+		if ([delegate respondsToSelector:@selector(carouselWillBeginScrollingAnimation:)])
+		{
+			[delegate carouselWillBeginScrollingAnimation:self];
+		}
+        [self startAnimation];
     }
     else
     {
+        [CATransaction setDisableActions:YES];
         scrollOffset = itemWidth * [self clampedIndex:previousItemIndex + itemCount];
         [self didScroll];
-		[self depthSortViews];
+        [self depthSortViews];
+        [CATransaction setDisableActions:NO];
     }
 }
 
 - (void)scrollToItemAtIndex:(NSInteger)index duration:(NSTimeInterval)duration
 {
-	[self scrollByNumberOfItems:[self minScrollDistanceFromIndex:self.currentItemIndex toIndex:index] duration:duration];
+	[self scrollByNumberOfItems:[self minScrollDistanceFromIndex:roundf(scrollOffset/itemWidth) toIndex:index] duration:duration];
 }
 
 - (void)scrollToItemAtIndex:(NSInteger)index animated:(BOOL)animated
@@ -604,73 +879,287 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
 	[self scrollToItemAtIndex:index duration:animated? SCROLL_DURATION: 0];
 }
 
-#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
-
 - (void)removeItemAtIndex:(NSInteger)index animated:(BOOL)animated
 {
     index = [self clampedIndex:index];
-    UIView *itemView = [itemViews objectAtIndex:index];
+    UIView *itemView = [self viewAtIndex:index];
     
     if (animated)
     {
+        
+#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
+        
         [UIView beginAnimations:nil context:nil];
-        [UIView setAnimationDuration:0.1];
-        itemView.superview.layer.opacity = 0.0;
-        [itemView.superview performSelector:@selector(removeFromSuperview) withObject:nil afterDelay:0.1];
+        [UIView setAnimationDuration:0.1f];
+        [UIView setAnimationDelegate:itemView.superview];
+        [UIView setAnimationDidStopSelector:@selector(removeFromSuperview)];
+        itemView.superview.layer.opacity = 0.0f;
         [UIView commitAnimations];
+        
         [UIView beginAnimations:nil context:nil];
         [UIView setAnimationDuration:INSERT_DURATION];
+        [UIView setAnimationDelegate:self];
+        [UIView setAnimationDidStopSelector:@selector(depthSortViews)];
+        [self removeViewAtIndex:index];
+        numberOfItems --;
+        scrollOffset = itemWidth * self.currentItemIndex;
+        [self didScroll];
+        [UIView commitAnimations];
+        
+#else
+        
+        [CATransaction begin];
+        [CATransaction setAnimationDuration:0.1f];
+        [CATransaction setCompletionBlock:^{
+            [itemView.superview removeFromSuperview]; 
+        }];
+        itemView.superview.layer.opacity = 0.0f;
+        [CATransaction commit];
+        
+        [CATransaction begin];
+        [CATransaction setAnimationDuration:INSERT_DURATION];
+        [CATransaction setCompletionBlock:^{
+            [self depthSortViews]; 
+        }];
+        [self removeViewAtIndex:index];
+        numberOfItems --;
+        scrollOffset = itemWidth * self.currentItemIndex;
+        [self didScroll];
+        [CATransaction commit];
+        
+#endif
+        
     }
     else
     {
+        [CATransaction setDisableActions:YES];
         [itemView.superview removeFromSuperview];
+        [self removeViewAtIndex:index];
+        numberOfItems --;
+        scrollOffset = itemWidth * self.currentItemIndex;
+        [self didScroll];
+        [self depthSortViews];
+        [CATransaction setDisableActions:NO];
     }
+}
+
+- (void)fadeInItemView:(UIView *)itemView
+{
     
-    [(NSMutableArray *)itemViews removeObjectAtIndex:index];
-    numberOfItems --;
-    [self scrollToItemAtIndex:self.currentItemIndex animated:NO];
-	[self transformItemViews];
-     
-    if (animated)
-    {
-        [UIView commitAnimations];
-    }
+#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
+    
+    [UIView beginAnimations:nil context:nil];
+    [UIView setAnimationDuration:0.1f];
+    itemView.superview.layer.opacity = 1.0f;
+    [UIView commitAnimations];
+    
+#else
+    
+    [CATransaction begin];
+    [CATransaction setAnimationDuration:0.1f];
+    itemView.superview.layer.opacity = 1.0f;
+    [CATransaction commit];
+    
+#endif
+    
 }
 
 - (void)insertItemAtIndex:(NSInteger)index animated:(BOOL)animated
 {
     index = [self clampedIndex:index];
     numberOfItems ++;
-
-    UIView *itemView = [dataSource carousel:self viewForItemAtIndex:index];
-    [(NSMutableArray *)itemViews insertObject:itemView atIndex:index];
-    [contentView addSubview:[self containView:itemView]];
-    [self transformItemView:itemView atIndex:index];
-    itemView.superview.layer.opacity = 0.0;
- 
+    
+    [self insertView:nil atIndex:index];
+    UIView *itemView = [self loadViewAtIndex:index];
+    itemView.superview.layer.opacity = 0.0f;
+    
     if (animated)
     {
+        
+#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
+        
         [UIView beginAnimations:nil context:nil];
-        [UIView setAnimationCurve:UIViewAnimationCurveEaseInOut];
         [UIView setAnimationDuration:INSERT_DURATION];
+        [UIView setAnimationDelegate:self];
+        [UIView setAnimationDidStopSelector:@selector(loadUnloadViews)];
         [self transformItemViews];
         [UIView commitAnimations];
         
-        [UIView beginAnimations:nil context:nil];
-        [UIView setAnimationCurve:UIViewAnimationCurveEaseInOut];
-        [UIView setAnimationDelay:INSERT_DURATION - 0.1];
-        [UIView setAnimationDuration:0.1];
-        itemView.superview.layer.opacity = 1.0;
-        [UIView commitAnimations];
+#else
+        
+        [CATransaction begin];
+        [CATransaction setAnimationDuration:INSERT_DURATION];
+        [CATransaction setCompletionBlock:^{
+            [self loadUnloadViews]; 
+        }];
+        [self transformItemViews];
+        [CATransaction commit];
+        
+#endif
+        
+        [self performSelector:@selector(fadeInItemView:) withObject:itemView afterDelay:INSERT_DURATION - 0.1f];
     }
     else
-    { 
+    {
+        [CATransaction setDisableActions:YES];
         [self transformItemViews]; 
-        itemView.superview.layer.opacity = 1.0;
-    } 
+        [CATransaction setDisableActions:NO];
+        itemView.superview.layer.opacity = 1.0f; 
+    }
 }
 
+#pragma mark -
+#pragma mark Animation
+
+- (void)startAnimation
+{
+    if (!timer)
+    {
+        
+#ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
+        
+        timer = [CADisplayLink displayLinkWithTarget:self selector:@selector(step)];
+        [timer addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+        
+#else
+        
+        self.timer = [NSTimer scheduledTimerWithTimeInterval:1.0f/60.0f
+                                                      target:self
+                                                    selector:@selector(step)
+                                                    userInfo:nil
+                                                     repeats:YES];
 #endif
+        
+    }
+}
+
+- (void)stopAnimation
+{
+    [timer invalidate];
+    timer = nil;
+}
+
+- (float)decelerationDistance
+{
+    float acceleration = -startVelocity * DECELERATION_MULTIPLIER * (1.0f - decelerationRate);
+    return -powf(startVelocity, 2.0f) / (2.0f * acceleration);
+}
+
+- (BOOL)shouldDecelerate
+{
+    return (fabsf(startVelocity) > itemWidth * SCROLL_SPEED_THRESHOLD) &&
+		(fabsf([self decelerationDistance]) > itemWidth * DECELERATE_THRESHOLD);
+}
+
+- (BOOL)shouldScroll
+{
+    return (fabsf(startVelocity) > itemWidth * SCROLL_SPEED_THRESHOLD) &&
+        (fabsf(scrollOffset/itemWidth - self.currentItemIndex) > SCROLL_DISTANCE_THRESHOLD);
+}
+
+- (void)startDecelerating
+{
+    float distance = [self decelerationDistance];
+    startOffset = scrollOffset;
+    endOffset = startOffset + distance;
+    if (stopAtItemBoundary)
+    {
+        if (distance > 0.0f)
+        {
+            endOffset = ceilf(endOffset / itemWidth) * itemWidth;
+        }
+        else
+        {
+            endOffset = floorf(endOffset / itemWidth) * itemWidth;
+        }
+    }
+    if (!shouldWrap)
+    {
+        if (bounces)
+        {
+            endOffset = fmaxf(itemWidth * -bounceDistance,
+                fminf((numberOfItems - 1.0f + bounceDistance) * itemWidth, endOffset));
+        }
+        else
+        {
+            endOffset = [self clampedOffset:endOffset];
+        }
+    }
+    distance = endOffset - startOffset;
+    
+    startTime = CACurrentMediaTime();
+    scrollDuration = fabsf(distance) / fabsf(0.5f * startVelocity);   
+    
+    if (distance != 0.0f)
+    {
+        decelerating = YES;
+        [self startAnimation];
+    }
+}
+
+- (float)easeInOut:(float)time
+{
+    return (time < 0.5f)? 0.5f * powf(time * 2.0f, 3.0f): 0.5f * powf(time * 2.0f - 2.0f, 3.0f) + 1.0f;
+}
+
+- (void)step
+{
+    [CATransaction setDisableActions:YES];
+    NSTimeInterval currentTime = CACurrentMediaTime();
+    
+    if (toggle != 0.0f)
+    {
+        float toggleDuration = SCROLL_DURATION * fminf(1.0f, fmaxf(0.0f, itemWidth / fabsf(startVelocity)));
+        NSTimeInterval time = fminf(1.0f, (currentTime - toggleTime) / toggleDuration);
+        float delta = [self easeInOut:time];
+        toggle = (toggle < 0.0f)? (delta - 1.0f): (1.0f - delta);
+        [self didScroll];
+    }
+    
+    if (scrolling)
+    {
+        NSTimeInterval time = fminf(1.0f, (currentTime - startTime) / scrollDuration);
+        float delta = [self easeInOut:time];
+        scrollOffset = startOffset + (endOffset - startOffset) * delta;
+		[self didScroll];
+        if (time == 1.0f)
+        {
+            scrolling = NO;
+            [self depthSortViews];
+			if ([delegate respondsToSelector:@selector(carouselDidEndScrollingAnimation:)])
+			{
+				[delegate carouselDidEndScrollingAnimation:self];
+			}
+        }
+    }
+    else if (decelerating)
+    {
+        float time = fminf(scrollDuration, currentTime - startTime);
+        float acceleration = -startVelocity/scrollDuration;
+        float distance = startVelocity * time + 0.5f * acceleration * powf(time, 2.0f);
+        scrollOffset = startOffset + distance;
+        
+		[self didScroll];
+        if (time == (float)scrollDuration)
+        {
+            decelerating = NO;
+			if ([delegate respondsToSelector:@selector(carouselDidEndDecelerating:)])
+			{
+				[delegate carouselDidEndDecelerating:self];
+			}
+            if (scrollToItemBoundary || (scrollOffset - [self clampedOffset:scrollOffset]) != 0.0f)
+            {
+                [self scrollToItemAtIndex:self.currentItemIndex animated:YES];
+            }
+        }
+    }
+    else if (toggle == 0.0f)
+    {
+        [self stopAnimation];
+    }
+    
+    [CATransaction setDisableActions:NO];
+}
 
 #ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
 - (void)didMoveToSuperview
@@ -681,13 +1170,11 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
     if (self.superview)
 	{
 		[self reloadData];
-		[timer invalidate];
-		self.timer = [NSTimer scheduledTimerWithTimeInterval:1.0/60.0 target:self selector:@selector(step) userInfo:nil repeats:YES];
+        [self startAnimation];
 	}
 	else
 	{
-		[timer invalidate];
-		timer = nil;
+        [self stopAnimation];
 	}
 }
 
@@ -697,88 +1184,122 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
     {
         scrollOffset = [self clampedOffset:scrollOffset];
     }
+	else
+	{
+		float min = -bounceDistance * itemWidth;
+		float max = ((float)numberOfItems - 1.0f + bounceDistance) * itemWidth;
+		if (scrollOffset < min)
+		{
+			scrollOffset = min;
+			startVelocity = 0.0f;
+		}
+		else if (scrollOffset > max)
+		{
+			scrollOffset = max;
+			startVelocity = 0.0f;
+		}
+	}
+    
+    //check if index has changed
+    NSInteger currentIndex = roundf(scrollOffset/itemWidth);
+    NSInteger difference = [self minScrollDistanceFromIndex:previousItemIndex toIndex:currentIndex];
+    if (difference)
+    {
+        toggleTime = CACurrentMediaTime();
+        toggle = fmaxf(-1.0f, fminf(1.0f, -(float)difference));
+        [self startAnimation];
+    }
+    
+    [self loadUnloadViews];    
     [self transformItemViews];
+    
     if ([delegate respondsToSelector:@selector(carouselDidScroll:)])
     {
 		[delegate carouselDidScroll:self];
 	}
     
-    //update index
-    NSInteger currentItemIndex = self.currentItemIndex;
-    if (previousItemIndex != currentItemIndex)
-	{
-		previousItemIndex = currentItemIndex;
-		
-		//call delegate
-		if ([delegate respondsToSelector:@selector(carouselCurrentItemIndexUpdated:)])
-		{
-			[delegate carouselCurrentItemIndexUpdated:self];
-		}
-	}
+    //notify delegate of change index
+    if ([self clampedIndex:previousItemIndex] != self.currentItemIndex &&
+        [delegate respondsToSelector:@selector(carouselCurrentItemIndexUpdated:)])
+    {
+        [delegate carouselCurrentItemIndexUpdated:self];
+    }
+    
+    //update previous index
+    previousItemIndex = currentIndex;
 }
 
-- (void)step
-{
-    NSTimeInterval currentTime = CACurrentMediaTime();
-    NSTimeInterval deltaTime = currentTime - previousTime;
-    previousTime = currentTime;
-    
-    if (scrolling)
-    {
-        NSTimeInterval time = (currentTime - startTime ) / scrollDuration;
-        if (time >= 1.0)
-        {
-            time = 1.0;
-            scrolling = NO;
-            [self depthSortViews];
-        }
-        float delta = (time < 0.5f)? 0.5f * pow(time * 2.0, 3.0): 0.5f * pow(time * 2.0 - 2.0, 3.0) + 1.0; //ease in/out
-        scrollOffset = startOffset + (endOffset - startOffset) * delta;
-        [self didScroll];
-    }
-    else if (decelerating)
-    {
-        float index = self.currentItemIndex;
-        float offset = index - scrollOffset/itemWidth;
-        float force = pow(offset, 2.0);
-        force = fmin(force, 2.5);
-        if (offset < 0)
-        {
-            force = - force;
-        }
-        
-        currentVelocity -= force*itemWidth/2;
-        currentVelocity *= decelerationRate;
-        scrollOffset -= currentVelocity * deltaTime;
-        if (fabs(currentVelocity) < itemWidth*0.5 && fabs(offset) < itemWidth*0.5)
-        {
-            decelerating = NO;
-            [self scrollToItemAtIndex:index animated:YES];
-        }
-        [self didScroll];
-    }
-}
 
 #ifdef __IPHONE_OS_VERSION_MAX_ALLOWED
+
 
 #pragma mark -
 #pragma mark Gestures and taps
 
-- (void)didTap:(UIView *)container
+- (NSInteger)viewOrSuperviewIndex:(UIView *)view
 {
-    UIView *itemView = [container.subviews objectAtIndex:0];
-    NSInteger index = [itemViews indexOfObject:itemView];
-	if (index != NSNotFound)
+    if (view == nil)
+    {
+        return NSNotFound;
+    }
+    NSInteger index = [self indexOfView:view];
+    if (index == NSNotFound)
+    {
+        return [self viewOrSuperviewIndex:view.superview];
+    }
+    return index;
+}
+
+- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gesture shouldReceiveTouch:(UITouch *)touch
+{
+    if ([gesture isKindOfClass:[UITapGestureRecognizer class]])
+    {
+        //handle tap
+        NSInteger index = [self viewOrSuperviewIndex:touch.view];
+        if (index != NSNotFound)
+        {
+			if ([delegate respondsToSelector:@selector(carousel:shouldSelectItemAtIndex:)])
+			{
+				if (![delegate carousel:self shouldSelectItemAtIndex:index])
+				{
+					return NO;
+				}
+			}
+            if (!centerItemWhenSelected || index == self.currentItemIndex)
+            {
+                if ([touch.view isKindOfClass:[UIControl class]])
+                {
+                    return NO;
+                }
+            }
+        }
+    }
+    return YES;
+}
+
+- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gesture
+{
+	if ([gesture isKindOfClass:[UIPanGestureRecognizer class]])
 	{
-		if (centerItemWhenSelected && index != self.currentItemIndex)
-		{
-			[self scrollToItemAtIndex:index animated:YES];
-		}
-		if ([delegate respondsToSelector:@selector(carousel:didSelectItemAtIndex:)])
-		{
-			[delegate carousel:self didSelectItemAtIndex:index];
-		}
+		//ignore vertical swipes
+		UIPanGestureRecognizer *panGesture = (UIPanGestureRecognizer *)gesture;
+		CGPoint translation = [panGesture translationInView:self];
+		return fabsf(translation.x) >= fabsf(translation.y);
 	}
+	return YES;
+}
+
+- (void)didTap:(UITapGestureRecognizer *)tapGesture
+{
+    NSInteger index = [self indexOfView:[tapGesture.view.subviews objectAtIndex:0]];
+    if (centerItemWhenSelected && index != self.currentItemIndex)
+    {
+        [self scrollToItemAtIndex:index animated:YES];
+    }
+    if ([delegate respondsToSelector:@selector(carousel:didSelectItemAtIndex:)])
+    {
+        [delegate carousel:self didSelectItemAtIndex:index];
+    }
 }
 
 - (void)didPan:(UIPanGestureRecognizer *)panGesture
@@ -789,43 +1310,66 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
         {
             case UIGestureRecognizerStateBegan:
             {
+				dragging = YES;
                 scrolling = NO;
                 decelerating = NO;
                 previousTranslation = [panGesture translationInView:self].x;
+				if ([delegate respondsToSelector:@selector(carouselWillBeginDragging:)])
+				{
+					[delegate carouselWillBeginDragging:self];
+				}
                 break;
             }
             case UIGestureRecognizerStateEnded:
             case UIGestureRecognizerStateCancelled:
             {
-                decelerating = YES;
+				dragging = NO;
+                if ([self shouldDecelerate])
+                {
+                    [self startDecelerating];
+                }
+				if ([delegate respondsToSelector:@selector(carouselDidEndDragging:willDecelerate:)])
+				{
+					[delegate carouselDidEndDragging:self willDecelerate:decelerating];
+				}
+				if (!decelerating && (scrollToItemBoundary || (scrollOffset - [self clampedOffset:scrollOffset]) != 0.0f))
+				{
+                    if ([self shouldScroll])
+                    {
+                        NSInteger direction = (int)(startVelocity / fabsf(startVelocity));
+                        [self scrollToItemAtIndex:self.currentItemIndex + direction animated:YES];
+                    }
+                    else
+                    {
+                        [self scrollToItemAtIndex:self.currentItemIndex animated:YES];
+                    }
+				}
+				else if ([delegate respondsToSelector:@selector(carouselWillBeginDecelerating:)])
+				{
+					[delegate carouselWillBeginDecelerating:self];
+				}
+				break;
             }
             default:
             {
                 float translation = [panGesture translationInView:self].x - previousTranslation;
+				float factor = 1.0f;
+				if (!shouldWrap && bounces)
+				{
+					factor = 1.0f - fminf(fabsf(scrollOffset - [self clampedOffset:scrollOffset]) / itemWidth, bounceDistance) / bounceDistance;
+				}
+				
                 previousTranslation = [panGesture translationInView:self].x;
-                NSInteger index = round(scrollOffset / itemWidth);
-                float factor = (shouldWrap || (index >= 0 && index < numberOfItems))? 1.0: 0.5;
-                currentVelocity = [panGesture velocityInView:self].x * factor;
-                scrollOffset -= translation * factor;
+                startVelocity = -[panGesture velocityInView:self].x * factor;
+                scrollOffset -= translation * factor * scrollSpeed;
                 [self didScroll];
             }
         }
     }
 }
 
-- (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)gesture
-{
-	if ([gesture isKindOfClass:[UIPanGestureRecognizer class]])
-	{
-		//ignore vertical swipes
-		UIPanGestureRecognizer *panGesture = (UIPanGestureRecognizer *)gesture;
-		CGPoint translation = [panGesture translationInView:self];
-		return fabs(translation.x) >= fabs(translation.y);
-	}
-	return YES;
-}
-
 #else
+
 
 #pragma mark -
 #pragma mark Mouse control
@@ -834,22 +1378,67 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
 {
     if (scrollEnabled)
     {
+		if (!dragging)
+		{
+			dragging = YES;
+			if ([delegate respondsToSelector:@selector(carouselWillBeginDragging:)])
+			{
+				[delegate carouselWillBeginDragging:self];
+			}
+		}
         scrolling = NO;
         decelerating = NO;
         
         float translation = [theEvent deltaX];
-        NSInteger index = round(scrollOffset / itemWidth);
-        float factor = (shouldWrap || (index >= 0 && index < numberOfItems))? 1.0: 0.5;
-        
+		float factor = 1.0f;
+		if (!shouldWrap && bounces)
+		{
+			factor = 1.0f - fminf(fabsf(scrollOffset - [self clampedOffset:scrollOffset]) / itemWidth, bounceDistance) / bounceDistance;
+		}
+     
         NSTimeInterval thisTime = [theEvent timestamp];
-        currentVelocity = (translation / (thisTime - startTime)) * factor;
+        startVelocity = -(translation / (thisTime - startTime)) * factor;
         startTime = thisTime;
-        scrollOffset -= translation * factor;
-        [self didScroll];
         
-        decelerating = YES;
+        scrollOffset -= translation * factor * scrollSpeed;
+        [CATransaction setDisableActions:YES];
+        [self didScroll];
+        [CATransaction setDisableActions:NO];
     }
 }
+
+- (void)mouseUp:(NSEvent *)theEvent
+{
+	if (scrollEnabled)
+    {
+		dragging = NO;
+		if ([self shouldDecelerate])
+        {
+            [self startDecelerating];
+        }
+		if ([delegate respondsToSelector:@selector(carouselDidEndDragging:willDecelerate:)])
+		{
+			[delegate carouselDidEndDragging:self willDecelerate:decelerating];
+		}
+		if (!decelerating)
+		{
+			if ([self shouldScroll])
+            {
+                NSInteger direction = (int)(startVelocity / fabsf(startVelocity));
+                [self scrollToItemAtIndex:self.currentItemIndex + direction animated:YES];
+            }
+            else
+            {
+                [self scrollToItemAtIndex:self.currentItemIndex animated:YES];
+            }
+		}
+		else if ([delegate respondsToSelector:@selector(carouselWillBeginDecelerating:)])
+		{
+			[delegate carouselWillBeginDecelerating:self];
+		}
+	}
+}
+
 
 #pragma mark -
 #pragma mark Scrollwheel control
@@ -857,7 +1446,19 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
 - (void)scrollWheel:(NSEvent *)theEvent
 {
     [self mouseDragged:theEvent];
+	
+	//the iCarousel deceleration system conflicts with the built-in momentum
+	//scrolling for scrollwheel events. need to find a way to trigger the appropriate
+	//events, and also detect when user has disabled momentum scrolling in system prefs
+	dragging = NO;
+	decelerating = NO;
+	if ([delegate respondsToSelector:@selector(carouselDidEndDragging:willDecelerate:)])
+	{
+		[delegate carouselDidEndDragging:self willDecelerate:decelerating];
+	}
+	[self scrollToItemAtIndex:self.currentItemIndex animated:YES];
 }
+
 
 #pragma mark -
 #pragma mark Keyboard control
@@ -890,15 +1491,15 @@ NSInteger compareViewDepth(id obj1, id obj2, void *context)
 
 #endif
 
+
 #pragma mark -
 #pragma mark Memory management
 
 - (void)dealloc
 {	
-    [timer invalidate];
+    [self stopAnimation];
     [contentView release];
 	[itemViews release];
-    [placeholderViews release];
 	[super dealloc];
 }
 

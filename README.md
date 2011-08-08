@@ -19,15 +19,17 @@ Carousel Types
 
 iCarousel supports the following built-in display types:
 
-iCarouselTypeLinear
-iCarouselTypeRotary
-iCarouselTypeInvertedRotary
-iCarouselTypeCylinder
-iCarouselTypeInvertedCylinder
-iCarouselTypeCoverFlow
+- iCarouselTypeLinear
+- iCarouselTypeRotary
+- iCarouselTypeInvertedRotary
+- iCarouselTypeCylinder
+- iCarouselTypeInvertedCylinder
+- iCarouselTypeCoverFlow
+- iCarouselTypeCoverflow2
 
-You can also implement your own bespoke style using iCarouselTypeCustom and the `carousel:transformForItemView:withOffset:` delegate method.
+You can also implement your own bespoke style using `iCarouselTypeCustom` and the `carousel:transformForItemView:withOffset:` delegate method.
 
+NOTE: The difference between `iCarouselTypeCoverFlow` and `iCarouselTypeCoverFlow2` types is quite subtle, however the logic for `iCarouselTypeCoverFlow2` is substantially more complex. If you flick the carousel they are basically identical, but if you drag the carousel slowly with your finger the difference should be apparent.
 
 Properties
 --------------
@@ -44,7 +46,7 @@ An object that supports the iCarouselDelegate protocol and can respond to carous
 
 	@property (nonatomic, assign) iCarouselType type;
 
-Used to switch the carousel display types (see above for details).
+Used to switch the carousel display type (see above for details).
 
 	@property (nonatomic, assign) float perspective;
 
@@ -52,7 +54,7 @@ Used to tweak the perspective foreshortening effect for the various 3D carousel 
 
 	@property (nonatomic, assign) CGSize contentOffset;
 
-This property is used to adjust the offset of the carousel item views relative to the center of the carousel. It defaults to CGSizeZero, meaning that the carousel items are centered. Changing this value moves both the carousel items without changing their perspective, i.e. the vanishing point moves with the carousel items, so if you move the carousel items down, it *does not* appear as if you are looking down on the carousel.
+This property is used to adjust the offset of the carousel item views relative to the center of the carousel. It defaults to CGSizeZero, meaning that the carousel items are centered. Changing this value moves the carousel items *without* changing their perspective, i.e. the vanishing point moves with the carousel items, so if you move the carousel items down, it *does not* appear as if you are looking down on the carousel.
 
 	@property (nonatomic, assign) CGSize viewpointOffset;
 
@@ -62,11 +64,15 @@ Note that the viewpointOffset transform is concatenated with the carousel item t
 
 	@property (nonatomic, assign) float decelerationRate;
 
-The rate at which the carousel decelerates when flicked. The default value is 0.9, values should be in the range 0.0 (carousel stops instantly when released) to 1 .0 (carousel continues indefinitely until it reaches the end).
+The rate at which the carousel decelerates when flicked. Higher values mean slower deceleration. The default value is 0.95. Values should be in the range 0.0 (carousel stops immediately when released) to 1.0 (carousel continues indefinitely without slowing down, unless it reaches the end).
 
 	@property (nonatomic, assign) BOOL bounces;
 
 Sets whether the carousel should bounce past the end and return, or stop dead. Note that this has no effect on carousel types that are designed to wrap, or where the carouselShouldWrap delegate method returns YES.
+
+	@property (nonatomic, assign) float bounceDistance;
+
+The maximum distance that a non-wrapped carousel will bounce when it overshoots the end. This is measured in multiples of the itemWidth, so a value of 1.0 would means the carousel will bounce by one whole item width, a value of 0.5 would be half an item's width, and so on. The default value is 1.0;
 
 	@property (nonatomic, assign) BOOL scrollEnabled;
 
@@ -74,27 +80,47 @@ Enables and disables user scrolling of the carousel. The carousel can still be s
 
 	@property (nonatomic, readonly) NSInteger numberOfItems;
 
-The number of items currently displayed in the carousel (read only).
+The number of items currently displayed in the carousel (read only). To set this, implement the `numberOfItemsInCarousel:` dataSource method.
 
-	@property (nonatomic, readonly) NSArray *itemViews;
+	@property (nonatomic, readonly) NSSet *visibleViews;
 
-An array of the item views currently displayed in the carousel (read only).
+A set of all the item views currently displayed in the carousel (read only). The order of these views is arbitrary, and does not relate to the item indices.
 
 	@property (nonatomic, readonly) UIView *contentView;
 
-The view containing the carousel item views. You can add subviews to this view if you want to intersperse a view with the carousel items. If you want a view to appear in front or behind the carousel items, you should add it directly to the iCarousel view itself instead. Note that the order of views inside the contentView is subject to frequent and undocumented change while the app is running. Any views added to the contentView should have their userInteractionEnabled property set to NO to prevent conflicts with iCarousel's touch event handling.
+The view containing the carousel item views. You can add subviews to this view if you want to intersperse them with the carousel items. If you want a view to appear in front or behind all of the carousel items, you should add it directly to the iCarousel view itself instead. Note that the order of views inside the contentView is subject to frequent and undocumented change while the app is running. Any views added to the contentView should have their userInteractionEnabled property set to NO to prevent conflicts with iCarousel's touch event handling.
 
 	@property (nonatomic, readonly) NSInteger currentItemIndex;
 
-The currently centered item in the carousel (read only).
+The currently centered item in the carousel (read only). To change this, use the `scrollToItemAtIndex:` methods. 
 
 	@property (nonatomic, readonly) float itemWidth;
 
-The display width of items in the carousel (read only).
+The display width of items in the carousel (read only). This is derived automatically from the first view passed in to the carousel using the `carousel:viewForItemAtIndex:` dataSource method. You can also override this value using the `carouselItemWidth:` delegate method, which will alter the spacing between carousel items (but won't resize or scale the item views).
 
 	@property (nonatomic, assign) BOOL centerItemWhenSelected;
 
-When set to YES, tapping any item in the carousel other than the one matching the currentItemIndex will cause it to smoothly animate to the center. Tapping the currently selected item will have no effect. **This property is currently only supported on the iOS version of iCarousel.**
+When set to YES, tapping any item in the carousel other than the one matching the currentItemIndex will cause it to smoothly animate to the center. Tapping the currently selected item will have no effect. Defaults to YES. **This property is currently only supported on the iOS version of iCarousel.**
+
+	@property (nonatomic, assign) NSInteger numberOfVisibleItems;
+	
+This is the maximum number of item views that should be visible in the carousel at once. Half of this number of views will be displayed to either side of the currently selected item index. Views beyond that will not be loaded until they are scrolled into view. This allows for the carousel to contain a very large number of items without adversely affecting performance. The numberOfVisibleItems should be a positive, odd number, and defaults to 21.
+
+	@property (nonatomic, readonly) float scrollSpeed;
+	
+This is the scroll speed multiplier when the user drags the carousel with their finger (read only). By default this is 1.0 for most carousel types, but defaults to 4.0 for the CoverFlow-style carousels to compensate for the fact that their items are more closely spaced. To change the default scrollSpeed, implement the `carouselScrollSpeed:` delegate method.
+
+	@property (nonatomic, readonly) float toggle;
+	
+This property is used for the `iCarouselTypeCoverFlow2` carousel transform. It is exposed so that you can implement your own variants of the CoverFlow2 style using the `carousel:transformForItemView:withOffset` delegate method.
+
+	@property (nonatomic, assign) BOOL stopAtItemBoundary;
+	
+By default, the carousel will come to rest at an exact item boundary when it is flicked. If you set this property to NO, it will stop naturally and then - if scrollToItemBoundary is set to YES - scroll back or forwards to the nearest boundary.
+	
+	@property (nonatomic, assign) BOOL scrollToItemBoundary;
+
+By default whenever the carousel stops moving it will automatically scroll to the nearest item boundary. If you set this property to NO, the carousel will not scroll after stopping and will stay wherever it is, even if it's not perfectly aligned on the current index. The exception to this is that if wrapping is disabled and `bounces` is set to YES then regardless of this setting, the carousel will automatically scroll back to the first or last item index if it comes to rest beyond the end of the carousel. 
 
 
 Methods
@@ -104,7 +130,7 @@ The iCarousel class has the following methods (note: for Mac OS, substitute NSVi
 
 	- (void)scrollToItemAtIndex:(NSUInteger)index animated:(BOOL)animated;
 
-This will center the carousel on the specified item, either immediately or with a smooth animation. For wrapped carousels, the carousel will automatically determine the shortest (direct, or wraparound) distance to scroll. If you need to control the scroll direction, use the scrollByNumberOfItems method instead.
+This will center the carousel on the specified item, either immediately or with a smooth animation. For wrapped carousels, the carousel will automatically determine the shortest (direct, or wraparound) distance to scroll. If you need to control the scroll direction, or want to scroll by more than one revolution, use the scrollByNumberOfItems method instead.
 
 	- (void)scrollToItemAtIndex:(NSUInteger)index duration:(NSTimeInterval)scrollDuration;
 
@@ -112,7 +138,7 @@ This method allows you to control how long the carousel takes to scroll to the s
 
 	- (void)scrollByNumberOfItems:(NSInteger)itemCount duration:(NSTimeInterval)duration;
 
-This method allows you to scroll the carousel by a fixed distance, measured in carousel item widths. Positive or negative values may be specified for itemCount, depending on the direction you wish to scroll, and iCarousel gracefully handles bounds issues, so if you specify a distance greater than the number of items in the carousel, scrolling will either be clamped when it reaches the end of the carousel (if wrapping is disabled) or wrap around seamlessly.
+This method allows you to scroll the carousel by a fixed distance, measured in carousel item widths. Positive or negative values may be specified for itemCount, depending on the direction you wish to scroll. iCarousel gracefully handles bounds issues, so if you specify a distance greater than the number of items in the carousel, scrolling will either be clamped when it reaches the end of the carousel (if wrapping is disabled) or wrap around seamlessly.
 
 	- (void)reloadData;
 
@@ -120,11 +146,11 @@ This reloads all carousel views from the dataSource and refreshes the carousel d
 
 	- (void)removeItemAtIndex:(NSUInteger)index animated:(BOOL)animated;
 
-This removes an item from the carousel. The remaining items will slide across to fill the gap. Note that the data source is not updated when this method is called, so a subsequent call to reloadData will restore the removed item. **This method is currently only supported on the iOS version of iCarousel.**
+This removes an item from the carousel. The remaining items will slide across to fill the gap. Note that the data source is not automatically updated when this method is called, so a subsequent call to reloadData will restore the removed item.
 
 	- (void)insertItemAtIndex:(NSUInteger)index animated:(BOOL)animated;
 
-This inserts an item into the carousel. The new item will be requested from the dataSource, so make sure that the new item has been added to the data source data before calling this method, or you will get duplicate items in the carousel, or other weirdness. **This method is currently only supported on the iOS version of iCarousel.**
+This inserts an item into the carousel. The new item will be requested from the dataSource, so make sure that the new item has been added to the data source data before calling this method, or you will get duplicate items in the carousel, or other weirdness.
 
 
 Protocols
@@ -152,6 +178,14 @@ Return a view to be displayed as the placeholder view. As with the regular item 
 
 The iCarouselDelegate protocol has the following optional methods:
 
+	- (void)carouselWillBeginScrollingAnimation:(iCarousel *)carousel;
+	
+This method is called whenever the carousel will begin an animated scroll. This can be triggered programatically or automatically after the user finishes scrolling the carousel, as the carousel re-aligns itself.
+	
+	- (void)carouselDidEndScrollingAnimation:(iCarousel *)carousel;
+	
+This method is called when the carousel ends an animated scroll.
+	
 	- (void)carouselDidScroll:(iCarousel *)carousel;
 
 This method is called whenever the carousel is scrolled. It is called regardless of whether the carousel was scrolled programatically or through user interaction.
@@ -160,9 +194,29 @@ This method is called whenever the carousel is scrolled. It is called regardless
 
 This method is called whenever the carousel scrolls far enough for the currentItemIndex property to change. It is called regardless of whether the item index was updated programatically or through user interaction.
 
+	- (void)carouselWillBeginDragging:(iCarousel *)carousel;
+	
+This method is called when the user begins dragging the carousel. It will not fire if the user taps/clicks the carousel, or if the carousel is scrolled programmatically.
+	
+	- (void)carouselDidEndDragging:(iCarousel *)carousel willDecelerate:(BOOL)decelerate;
+	
+This method is called when the user stops dragging the carousel. The willDecelerate parameter indicates whether the carousel is travelling fast enough that it needs to decelerate before it stops (i.e. the current index is not necessarily the one it will stop at) or if it will stop where it is. Note that even if willDecelerate is NO, the carousel will still scroll automatically until it aligns exactly on the current index. If you need to know when it has stopped moving completely, use the carouselDidEndScrollingAnimation delegate method. On Mac OS, willDecelerate is always NO when using the scrollwheel because Mac OS implements its own inertia mechanism for scrolling.
+	
+	- (void)carouselWillBeginDecelerating:(iCarousel *)carousel;
+	
+This method is called when the carousel starts decelerating. it will typically be called immediately after the carouselDidEndDragging:willDecelerate: method, assuming willDecelerate was YES. On Mac OS, this method never fires when using the scrollwheel because Mac OS implements its own inertia mechanism for scrolling.
+	
+	- (void)carouselDidEndDecelerating:(iCarousel *)carousel;
+
+This method is called when the carousel finishes decelerating and you can assume that the currentItemIndex at this point is the final stopping value. Unlike previous versions, the carousel will now stop exactly on the final index position in most cases. The only exception is on non-wrapped carousels with bounce enabled, where, if the final stopping position is beyond the end of the carousel, the carousel will then scroll automatically until it aligns exactly on the end index. For backwards compatibility, the carousel will always call `scrollToItemAtIndex:animated:` after it finishes decelerating. If you need to know for certain when the carousel has stopped moving completely, use the `carouselDidEndScrollingAnimation` delegate method.
+
 	- (float)carouselItemWidth:(iCarousel *)carousel;
 
-Returns the width of each item in the carousel - i.e. the spacing for each item view. If the method is not implemented, this defaults to the width of the first item view that is returned by the `carousel:viewForItemAtIndex:` method.
+Returns the width of each item in the carousel - i.e. the spacing for each item view. If the method is not implemented, this defaults to the width of the first item view that is returned by the `carousel:viewForItemAtIndex:` dataSource method.
+
+	- (float)carouseScrollSpeed:(iCarousel *)carousel;
+	
+Returns the scroll speed multiplier when the user drags the carousel with their finger. It does not affect programmatic scrolling or deceleration speed. If the method is not implemented, this defaults to 1.0 for most carousel types, but defaults to 4.0 for the CoverFlow-style carousels to compensate for the fact that their items are more closely spaced.
 
 	- (BOOL)carouselShouldWrap:(iCarousel *)carousel;
 
@@ -174,18 +228,24 @@ This method can be used to provide a custom transform for each carousel view. Th
 
 	- (void)carousel:(iCarousel *)carousel didSelectItemAtIndex:(NSInteger)index;
 
-This method will fire if the user taps any carousel item view (not including placeholder views), including the currently selected view. **This method is currently only supported on the iOS version of iCarousel.**
+This method will fire if the user taps any carousel item view (not including placeholder views), including the currently selected view. This method will not fire if the user taps a control within the currently selected view (i.e. any view that is a subclass of UIControl). **This method is currently only supported on the iOS version of iCarousel.**
+
+	- (BOOL)carousel:(iCarousel *)carousel shouldSelectItemAtIndex:(NSInteger)index;
+	
+This method will fire if the user taps any carousel item view (not including placeholder views), including the currently selected view. The purpose of a method is to give you the opportunity to ignore a tap on the carousel. If you return YES from the method, or don't implement it, the tap will be processed as normal and the `carousel:didSelectItemAtIndex:` method will be called. If you return NO, the carousel will ignore the tap and it will continue to propagate up the view hierarchy. This is a good way to prevent the carousel intercepting tap events intended for processing by another view. **This method is currently only supported on the iOS version of iCarousel.**
 
 
 Detecting Taps on Item Views
 ----------------------------
 
-There are two basic approaches to detecting taps on views in iCarousel on iOS. The first approach is to simply use the `carousel:didSelectItemAtIndex:` delegate method, which fires every time an item is tapped.
+There are two basic approaches to detecting taps on views in iCarousel on iOS. The first approach is to simply use the `carousel:didSelectItemAtIndex:` delegate method, which fires every time an item is tapped. If you are only interested in taps on the currently centered item, you can compare the `currentItemIndex` property against the index parameter of this method.
 
-Alternatively, if you want a little more control can use supply a UIButton as the item view and handle the touch interactions yourself. See the iOS example project for a demo of how this is done.
+Alternatively, if you want a little more control you can supply a UIButton or UIControl as the item view and handle the touch interactions yourself. See the iOS example project for a demo of how this is done (doesn't work on Mac OS; see below).
 
-If you wish to detect other types of interaction such as swipes, double taps or long presses, the simplest way is to attach a UIGestureRecognizer to your item view before passing it to the carousel.
+You can also nest UIControls within your item views and these will receive touches as expected.
 
-Note that taps and gestures will be ignored on any item view except the currently selected one, unless you set the centerItemWhenSelected property to NO.
+If you wish to detect other types of interaction such as swipes, double taps or long presses, the simplest way is to attach a UIGestureRecognizer to your item view or its subviews before passing it to the carousel.
 
-On Mac OS there is no easy way to do detect clicks on carousel items currently. You cannot just supply an NSButton as your item view because the transforms applied to the item views mean that hit detection doesn't work properly. I'm investigating possible solutions to this (if you know a good way to fix this, please fork the project on github).
+Note that taps and gestures will be ignored on any item view except the currently selected one, unless you set the `centerItemWhenSelected` property to NO.
+
+On Mac OS there is no easy way to do detect clicks on carousel items currently. You cannot just supply an NSButton as your item view because the transforms applied to the item views mean that hit detection doesn't work properly. I'm investigating possible solutions to this (if you know a good way to fix this, please get in touch, or fork the project on github).

@@ -9,7 +9,7 @@
 #import "iCarouselWindowController.h"
 
 
-#define NUMBER_OF_ITEMS 20
+#define NUMBER_OF_ITEMS 19
 #define ITEM_SPACING 210
 
 
@@ -32,6 +32,7 @@
     if ((self = [super initWithWindow:window]))
     {
         //set up data
+        wrap = YES;
         self.items = [NSMutableArray array];
         for (int i = 0; i < NUMBER_OF_ITEMS; i++)
         {
@@ -44,8 +45,7 @@
 - (void)awakeFromNib
 {
     //configure carousel
-    wrap = YES;
-    carousel.type = iCarouselTypeCoverFlow;
+    carousel.type = iCarouselTypeCoverFlow2;
     [self.window makeFirstResponder:carousel];
 }
 
@@ -58,13 +58,12 @@
 - (IBAction)switchCarouselType:(id)sender
 {
 	//restore view opacities to normal
-	NSArray *allViews = [carousel.itemViews arrayByAddingObjectsFromArray:carousel.placeholderViews];
-    for (NSView *view in allViews)
+    for (NSView *view in carousel.visibleViews)
     {
         view.layer.opacity = 1.0;
     }
 	
-    carousel.type = [sender tag];
+    carousel.type = (iCarouselType)[sender tag];
 }
 
 - (IBAction)toggleWrap:(id)sender;
@@ -72,6 +71,16 @@
     wrap = !wrap;
     [sender setState:wrap? NSOnState: NSOffState];
     [carousel reloadData];
+}
+
+- (IBAction)insertItem:(id)sender
+{
+    [carousel insertItemAtIndex:carousel.currentItemIndex animated:YES];
+}
+
+- (IBAction)removeItem:(id)sender
+{
+    [carousel removeItemAtIndex:carousel.currentItemIndex animated:YES];
 }
 
 #pragma mark -
@@ -158,6 +167,36 @@
 - (BOOL)carouselShouldWrap:(iCarousel *)carousel
 {
     return wrap;
+}
+
+- (void)carouselWillBeginDragging:(iCarousel *)carousel
+{
+	NSLog(@"Carousel will begin dragging");
+}
+
+- (void)carouselDidEndDragging:(iCarousel *)carousel willDecelerate:(BOOL)decelerate
+{
+	NSLog(@"Carousel did end dragging and %@ decelerate", decelerate? @"will": @"won't");
+}
+
+- (void)carouselWillBeginDecelerating:(iCarousel *)carousel
+{
+	NSLog(@"Carousel will begin decelerating");
+}
+
+- (void)carouselDidEndDecelerating:(iCarousel *)carousel
+{
+	NSLog(@"Carousel did end decelerating");
+}
+
+- (void)carouselWillBeginScrollingAnimation:(iCarousel *)carousel
+{
+	NSLog(@"Carousel will begin scrolling");
+}
+
+- (void)carouselDidEndScrollingAnimation:(iCarousel *)carousel
+{
+	NSLog(@"Carousel did end scrolling");
 }
 
 @end

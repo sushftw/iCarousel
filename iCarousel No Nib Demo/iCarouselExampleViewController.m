@@ -7,15 +7,18 @@
 //
 
 #import "iCarouselExampleViewController.h"
+#import "iCarousel.h"
 
 
-#define NUMBER_OF_ITEMS ((UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPad)? 19: 12)
+#define NUMBER_OF_ITEMS 20
 #define ITEM_SPACING 210
 #define USE_BUTTONS YES
 
 
-@interface iCarouselExampleViewController () <UIActionSheetDelegate>
+@interface iCarouselExampleViewController () <iCarouselDataSource, iCarouselDelegate, UIActionSheetDelegate>
 
+@property (nonatomic, retain) iCarousel *carousel;
+@property (nonatomic, retain) UINavigationItem *navItem;
 @property (nonatomic, assign) BOOL wrap;
 @property (nonatomic, retain) NSMutableArray *items;
 
@@ -29,12 +32,11 @@
 @synthesize wrap;
 @synthesize items;
 
-- (id)initWithCoder:(NSCoder *)aDecoder
+- (id)initWithNibName:(NSString *)nibNameOrNil bundle:(NSBundle *)nibBundleOrNil
 {
-    if ((self = [super initWithCoder:aDecoder]))
+    if ((self = [super initWithNibName:nibNameOrNil bundle:nibBundleOrNil]))
     {
         //set up data
-        wrap = YES;
         self.items = [NSMutableArray array];
         for (int i = 0; i < NUMBER_OF_ITEMS; i++)
         {
@@ -48,7 +50,7 @@
 {
     [carousel release];
     [navItem release];
-    [items release];
+	[items release];
     [super dealloc];
 }
 
@@ -58,10 +60,45 @@
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-    
-    //configure carousel
+	
+    wrap = YES;
+	
+	//add background
+	UIImageView *backgroundView = [[[UIImageView alloc] initWithFrame:self.view.bounds] autorelease];
+	backgroundView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+	backgroundView.image = [UIImage imageNamed:@"background.png"];
+	[self.view addSubview:backgroundView];
+	
+	//create carousel
+	self.carousel = [[iCarousel alloc] initWithFrame:self.view.bounds];
+	carousel.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
     carousel.type = iCarouselTypeCoverFlow2;
-    navItem.title = @"CoverFlow2";
+	carousel.delegate = self;
+	carousel.dataSource = self;
+
+	//add carousel to view
+	[self.view addSubview:carousel];
+	
+	//add top bar
+	UINavigationBar *navbar = [[UINavigationBar alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 44)];
+	navbar.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+	self.navItem = [[[UINavigationItem alloc] initWithTitle:@"Coverflow2"] autorelease];
+	navItem.leftBarButtonItem = [[[UIBarButtonItem alloc] initWithTitle:@"Switch Type" style:UIBarButtonItemStyleBordered target:self action:@selector(switchCarouselType)] autorelease];
+	navItem.rightBarButtonItem = [[[UIBarButtonItem alloc] initWithTitle:@"Wrap: ON" style:UIBarButtonItemStyleBordered target:self action:@selector(toggleWrap)] autorelease];
+	[navbar setItems:[NSArray arrayWithObject:navItem]];
+	[self.view addSubview:navbar];
+	[navbar release];
+	
+	//add bottom bar
+	UIToolbar *toolbar = [[UIToolbar alloc] initWithFrame:CGRectMake(0, self.view.bounds.size.height - 44, self.view.bounds.size.width, 44)];
+	toolbar.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
+	[toolbar setItems:[NSArray arrayWithObjects:
+					   [[[UIBarButtonItem alloc] initWithTitle:@"Insert Item" style:UIBarButtonItemStyleBordered target:self action:@selector(insertItem)] autorelease],
+					   [[[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemFlexibleSpace target:nil action:NULL] autorelease],
+					   [[[UIBarButtonItem alloc] initWithTitle:@"Delete Item" style:UIBarButtonItemStyleBordered target:self action:@selector(removeItem)] autorelease],
+					   nil]];
+	[self.view addSubview:toolbar];
+	[toolbar release];
 }
 
 - (void)viewDidUnload
@@ -137,7 +174,7 @@
 - (UIView *)carousel:(iCarousel *)carousel viewForItemAtIndex:(NSUInteger)index
 {
     if (USE_BUTTONS)
-    {  
+    {
         //create a numbered button
         UIImage *image = [UIImage imageNamed:@"page.png"];
         UIButton *button = [[[UIButton alloc] initWithFrame:CGRectMake(0, 0, image.size.width, image.size.height)] autorelease];
@@ -165,7 +202,7 @@
 
 - (NSUInteger)numberOfPlaceholdersInCarousel:(iCarousel *)carousel
 {
-	//note: placeholder views are only displayed on some carousels if wrapping is disabled
+	//note: placeholder views are only displayed if wrapping is disabled
 	return 2;
 }
 
