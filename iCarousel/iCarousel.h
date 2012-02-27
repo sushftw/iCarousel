@@ -230,6 +230,7 @@ iCarouselTranformOption;
 - (NSInteger)indexOfItemView:(UIView *)view;
 - (NSInteger)indexOfItemViewOrSubview:(UIView *)view;
 - (void)reloadData;
+- (void)reloadDataTruncate:(BOOL)truncate;
 
 #ifdef ICAROUSEL_IOS
 

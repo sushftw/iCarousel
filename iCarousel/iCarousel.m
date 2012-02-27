@@ -1135,19 +1135,22 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
     }
 }
 
-- (void)reloadData
-{    
-	//remove old views
-    for (UIView *view in [self.itemViews allValues])
-    {
-		[view.superview removeFromSuperview];
-	}
-    
-    //bail out if not set up yet
+- (void)reloadDataTruncate:(BOOL)truncate
+{
+	//bail out if not set up yet
 	if (!dataSource || !contentView)
 	{
 		return;
 	}
+    
+	if (truncate) {
+		//remove old views
+		for (UIView *view in self.visibleItemViews)
+		{
+			[view.superview removeFromSuperview];
+		}
+		self.itemViews = [NSMutableDictionary dictionary];
+    }
     
     //get number of items and placeholders
     numberOfItems = [dataSource numberOfItemsInCarousel:self];
@@ -1181,6 +1184,10 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
     }
 }
 
+- (void)reloadData
+{
+	[self reloadDataTruncate:YES];
+}
 
 #pragma mark -
 #pragma mark Scrolling
@@ -1266,13 +1273,11 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
 		previousItemIndex = roundf(scrollOffset/itemWidth);
         if (itemCount > 0)
         {
-            endOffset = (floorf(startOffset / itemWidth) + itemCount) * itemWidth;
-			if (isnan(endOffset)) endOffset = 0;
+            endOffset = (roundf(startOffset / itemWidth) + itemCount) * itemWidth;
         }
         else if (itemCount < 0)
         {
-            endOffset = (ceilf(startOffset / itemWidth) + itemCount) * itemWidth;
-			if (isnan(endOffset)) endOffset = 0;
+            endOffset = (roundf(startOffset / itemWidth) + itemCount) * itemWidth;
         }
         else
         {
@@ -1648,7 +1653,7 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
         CGFloat time = fminf(scrollDuration, currentTime - startTime);
         CGFloat acceleration = -startVelocity/scrollDuration;
         CGFloat distance = startVelocity * time + 0.5f * acceleration * powf(time, 2.0f);
-        scrollOffset = startOffset + distance;
+        scrollOffset = startOffset + distance * self.offsetMultiplier;
         
 		[self didScroll];
         if (time == (CGFloat)scrollDuration)
