@@ -2008,10 +2008,13 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
 - (void)mouseDown:(NSEvent *)theEvent
 {
     startVelocity = 0.0f;
+    scrolling = NO;
+    decelerating = NO;
 }
 
 - (void)mouseDragged:(NSEvent *)theEvent
 {
+    NSLog(@"dragging %ld", (long) self.currentItemIndex);
     if (scrollEnabled)
     {
 		if (!dragging)
@@ -2022,8 +2025,6 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
 				[delegate carouselWillBeginDragging:self];
 			}
 		}
-        scrolling = NO;
-        decelerating = NO;
         
         CGFloat translation = vertical? [theEvent deltaY]: [theEvent deltaX];
 		CGFloat factor = 1.0f;
