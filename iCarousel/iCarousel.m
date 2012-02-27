@@ -155,6 +155,19 @@ CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 #pragma mark -
 #pragma mark Initialisation
 
+// returns YES if the flag was changed, or NO if it wasn't
+// Thus, called can check the return value to see if it 
+// is necessary to restore the previous state
++ (BOOL) setDisableActions:(BOOL)flag
+{
+    if ([CATransaction disableActions] == flag)
+    {
+        return NO;
+    }
+    [CATransaction setDisableActions:flag];
+    return YES;
+}
+
 - (void)setUp
 {
 	type = iCarouselTypeLinear;
@@ -459,6 +472,7 @@ CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
     CATransform3D transform = CATransform3DIdentity;
     transform.m34 = perspective;
     transform = CATransform3DTranslate(transform, -viewpointOffset.width, -viewpointOffset.height, 0.0f);
+    
     
     //perform transform
     switch (type)
@@ -818,9 +832,12 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
 //for Mac OS
 - (void)resizeSubviewsWithOldSize:(NSSize)oldSize
 {
-	[CATransaction setDisableActions:YES];
+	BOOL didChange = [iCarousel setDisableActions:YES];
     [self layoutSubviews];
-	[CATransaction setDisableActions:NO];
+    if (didChange)
+    {
+        [iCarousel setDisableActions:NO];   
+    }
 }
 
 - (void)transformItemViews
@@ -1004,7 +1021,7 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
 
 - (UIView *)loadViewAtIndex:(NSInteger)index withContainerView:(UIView *)containerView
 {
-    [CATransaction setDisableActions:YES];
+    BOOL didChange = [iCarousel setDisableActions:YES];
     
     UIView *view = nil;
     if (index < 0)
@@ -1071,9 +1088,13 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
     {
         [contentView addSubview:[self containView:view]];
     }
+
     [self transformItemView:view atIndex:index];
     
-    [CATransaction setDisableActions:NO];
+    if (didChange)
+    {
+        [iCarousel setDisableActions:NO];
+    }
     
     return view;
 }
@@ -1172,11 +1193,14 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
     self.placeholderViewPool = [NSMutableSet setWithCapacity:numberOfVisibleItems];
     
     //layout views
-    [CATransaction setDisableActions:YES];
+    BOOL didChange = [iCarousel setDisableActions:YES];
     [self layOutItemViews];
     [self depthSortViews];
 	[self performSelector:@selector(depthSortViews) withObject:nil afterDelay:0.0f];
-    [CATransaction setDisableActions:NO];
+    if (didChange)
+    {
+        [iCarousel setDisableActions:NO];   
+    }
     
     if (numberOfItems > 0 && scrollOffset < 0.0f)
     {
@@ -1298,12 +1322,15 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
     {
         scrolling = NO;
         decelerating = NO;
-        [CATransaction setDisableActions:YES];
+        BOOL didChange = [iCarousel setDisableActions:YES];
         scrollOffset = itemWidth * [self clampedIndex:previousItemIndex + itemCount];
         previousItemIndex = previousItemIndex + itemCount;
         [self didScroll];
         [self depthSortViews];
-        [CATransaction setDisableActions:NO];
+        if (didChange)
+        {
+            [iCarousel setDisableActions:NO];   
+        }
     }
 }
 
@@ -1376,7 +1403,7 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
     }
     else
     {
-        [CATransaction setDisableActions:YES];
+        BOOL didChange = [iCarousel setDisableActions:YES];
         [self queueItemView:itemView];
         [itemView.superview removeFromSuperview];
         [self removeViewAtIndex:index];
@@ -1384,7 +1411,10 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
         scrollOffset = itemWidth * self.currentItemIndex;
         [self didScroll];
         [self depthSortViews];
-        [CATransaction setDisableActions:NO];
+        if (didChange)
+        {
+            [iCarousel setDisableActions:NO];   
+        }
     }
 }
 
@@ -1458,9 +1488,12 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
     }
     else
     {
-        [CATransaction setDisableActions:YES];
+        BOOL didChange = [iCarousel setDisableActions:YES];
         [self transformItemViews]; 
-        [CATransaction setDisableActions:NO];
+        if (didChange)
+        {
+            [iCarousel setDisableActions:NO];   
+        }
         itemView.superview.layer.opacity = 1.0f; 
     }
     
@@ -1619,7 +1652,7 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
 
 - (void)step
 {
-    [CATransaction setDisableActions:YES];
+    BOOL didChange = [iCarousel setDisableActions:YES];
     NSTimeInterval currentTime = CACurrentMediaTime();
     
     if (toggle != 0.0f)
@@ -1697,7 +1730,10 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
         [self stopAnimation];
     }
     
-    [CATransaction setDisableActions:NO];
+    if (didChange)
+    {
+        [iCarousel setDisableActions:NO];   
+    }
 }
 
 //for iOS
@@ -2001,9 +2037,12 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
         startTime = thisTime;
         
         scrollOffset -= translation * factor * offsetMultiplier;
-        [CATransaction setDisableActions:YES];
+        BOOL didChange = [iCarousel setDisableActions:YES];
         [self didScroll];
-        [CATransaction setDisableActions:NO];
+        if (didChange)
+        {
+            [iCarousel setDisableActions:NO];   
+        }
     }
 }
 
