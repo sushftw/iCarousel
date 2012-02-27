@@ -1,3 +1,85 @@
+Version 1.6.2
+
+- Fixed long-standing viewpointOffset bug
+- Fixed potential bug around not setting default carousel type
+- LLVM GCC compiler is no longer supported, Now requires Apple LLVM compiler
+- Upgraded to latest ARC Helper code
+
+Version 1.6.1
+
+- Added automatic support for ARC compile targets
+- Now compiles correctly again under LLVM GCC 4.2
+- Vertical Time Machine carousel is now right-way-up on Mac OS
+- Added Inverted Time Machine carousel type
+- Added dynamic reflections example
+- Fixed crashing bug in examples on iPad
+- Carousels now behave better with 1 or 2 items
+
+Version 1.6
+
+- Added support for item view recycling
+- Carousels can now be either horizontal or vertical
+- Added Wheel and Time Machine carousel types
+- Added new iCarouselTransformOption system for tweaking the standard carousel transforms without having to provide a completely bespoke implementation
+- Added ignorePerpendicularSwipes property
+- Fixed issue with scrolling immediately after reloading
+- Added useDisplayLink toggle to manually force use of NSTimer
+- Added support for the Chameleon iOS-to-Mac porting library
+- Removed the deprecated visibleViews property
+- Added carousel:alphaForViewAtItemWithOffset: delegate method for controlling view opacity
+- Added indexOfItemViewOrSubview: method to simplify handling of controls within  carousel item views
+- Deprecated/renamed some dataSource and delegate methods - check your projects for compatibility
+- Expanded examples and tests
+
+Version 1.5.8
+
+- Fixed bug in previous UITableCell fix
+- No longer gets stuck at a negative offset when inserting items into an empty carousel
+- Example app no longer crashes when inserting item into empty carousel
+- Better behaviour when reloading carousel
+
+Version 1.5.7
+
+- Fixed ARC compatibility issues with sorting logic
+- UISwitches, UISliders and UITableCells now work correctly with item views
+- Fixed bug in carousel:shouldSelectItemAtIndex: delegate logic
+
+Version 1.5.6
+
+- Added reloadItemAtIndex:animated: method.
+- Fixed some issues when setting offset or carousel bounds on the fly.
+- Less aggressive use of [CATransaction setDisableActions:YES] means more properties of carousel are now animatable (including setting the type).
+- Fixed NaN bug when displaying an empty carousel
+- Fixed glitch when programatically scrolling CoverFlow2-type carousel.
+- Cylinder and rotary carousel are now sized to fit visible number of items.
+
+Version 1.5.5
+
+- Deprecated visibleViews property
+- Added visibleItemViews property, which is an array
+- Added indexesForVisibleItems property
+- Added itemViewAtIndex: method
+- Added currentItemView property
+- Added indexOfItemView: method
+- Fixed glitch when unwrapped CoverFlow2-type carousels reach the far right
+- Scroll animation events are now called immediately after scrolling ends if the carousel does not need to scroll a significant distance.
+- Fixed jerky bounce animation on CoverFlow2-type carousels when stopAtItemBoundary is set to NO.
+
+Version 1.5.4
+
+- Fixed a bug where insertItemAtIndex method would not allow items to be inserted at the rightmost end of the carousel.
+
+Version 1.5.3
+
+- Fixed a bug on wrapped carousels when the total number of carousel items exceeds the number of visible items.
+- Changed numberOfVisibleItems property to be a dataSource method, removing the arbitrary default limit of 21.
+- Fixed a flickering issue on CoverFlow2 carousel type.
+- Fixed bug on Mac where clicking would spin the carousel a random distance.
+- scrollSpeed is now a read/write property, and only affects speed when carousel is flicked.
+- Removed `carouselScrollSpeed` delegate method and replaced it with new `offsetMultiplier` property and `carouselOffsetMultiplier` delegate method to control the offset when dragging.
+- scrollOffset property is now public (readonly).
+- Floating point arguments and properties are now CGFloats instead of floats.
+
 Version 1.5.2
 
 - Added bounceDistance property for finer control over bounce behaviour.
