@@ -484,13 +484,6 @@ CVReturn displayLinkCallback(CVDisplayLinkRef displayLink,
 				return [delegate carousel:self itemTransformForOffset:offset baseTransform:transform];
 			}
 			
-			//deprecated code path
-			else if ([delegate respondsToSelector:@selector(carousel:transformForItemView:withOffset:)])
-			{
-				NSLog(@"Delegate method carousel:transformForItemView:withOffset: is deprecated, use carousel:transformForItemAtIndex:withOffset:baseTransform: instead.");
-				return [delegate carousel:self transformForItemView:view withOffset:offset];
-			}
-			
             //else, fall through to linear transform
         }
         case iCarouselTypeLinear:
@@ -1030,13 +1023,6 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
 		{
         	view = [dataSource carousel:self placeholderViewAtIndex:(int)ceilf((CGFloat)numberOfPlaceholdersToShow/2.0f) + index reusingView:[self dequeuePlaceholderView]];
 		}
-		
-		//deprecated code path
-		else if ([dataSource respondsToSelector:@selector(carousel:placeholderViewAtIndex:)])
-		{
-			NSLog(@"DataSource method carousel:placeholderViewAtIndex: is deprecated, use carousel:placeholderViewAtIndex:reusingView: instead.");
-        	view = [dataSource carousel:self placeholderViewAtIndex:(int)ceilf((CGFloat)numberOfPlaceholdersToShow/2.0f) + index];
-		}
     }
     else if (index >= numberOfItems)
     {
@@ -1044,25 +1030,12 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
 		{
         	view = [dataSource carousel:self placeholderViewAtIndex:numberOfPlaceholdersToShow/2.0f + index - numberOfItems reusingView:[self dequeuePlaceholderView]];
 		}
-		
-		//deprecated code path
-		else if ([dataSource respondsToSelector:@selector(carousel:placeholderViewAtIndex:)])
-		{
-			NSLog(@"DataSource method carousel:placeholderViewAtIndex: is deprecated, use carousel:placeholderViewAtIndex:reusingView: instead.");
-        	view = [dataSource carousel:self placeholderViewAtIndex:numberOfPlaceholdersToShow/2.0f + index - numberOfItems];
-		}
     }
     else if ([dataSource respondsToSelector:@selector(carousel:viewForItemAtIndex:reusingView:)])
     {
         view = [dataSource carousel:self viewForItemAtIndex:index reusingView:[self dequeueItemView]];
     }
-    
-	//deprecated code path
-	else
-    {
-		NSLog(@"DataSource method carousel:viewForItemAtIndex: is deprecated, use carousel:viewForItemAtIndex:reusingView: instead.");
-        view = [dataSource carousel:self viewForItemAtIndex:index];
-    }
+
     
     if (view == nil)
     {
