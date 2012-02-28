@@ -1987,7 +1987,6 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
 
 - (void)mouseDragged:(NSEvent *)theEvent
 {
-    NSLog(@"dragging %ld", (long) self.currentItemIndex);
     if (scrollEnabled)
     {
 		if (!dragging)
