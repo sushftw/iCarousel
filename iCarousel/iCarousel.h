@@ -273,6 +273,7 @@ iCarouselTranformOption;
 - (CGFloat)carousel:(iCarousel *)carousel itemAlphaForOffset:(CGFloat)offset;
 - (CATransform3D)carousel:(iCarousel *)carousel itemTransformForOffset:(CGFloat)offset baseTransform:(CATransform3D)transform;
 - (CGFloat)carousel:(iCarousel *)carousel valueForTransformOption:(iCarouselTranformOption)option withDefault:(CGFloat)value;
+- (void) carousel:(iCarousel *)carousel currentItemTapped:(NSPoint)point;
 
 
 #ifdef ICAROUSEL_IOS

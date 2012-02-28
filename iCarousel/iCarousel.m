@@ -2051,6 +2051,25 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
 			[delegate carouselWillBeginDecelerating:self];
 		}
 	}
+    
+    if ([theEvent clickCount] == 1)
+    {
+        if(itemViews.count > 0 && [delegate respondsToSelector:@selector(carousel:currentItemTapped:)])
+        {
+            UIView* currItemView = [itemViews objectForKey:[NSNumber numberWithInteger:self.currentItemIndex]];
+            
+            NSPoint eventLocation = [theEvent locationInWindow];
+            eventLocation = [self convertPoint:eventLocation fromView:nil];
+            // the view's origin is set to center, so we move the click point to account for this
+            eventLocation = NSMakePoint(eventLocation.x + (currItemView.bounds.size.width)/2.0, eventLocation.y + (currItemView.bounds.size.height)/2.0);
+            
+            if (NSPointInRect(eventLocation, currItemView.superview.frame))
+            {
+                eventLocation = [currItemView convertPoint:eventLocation fromView:self];
+                [delegate carousel:self currentItemTapped:eventLocation];
+            }
+        }
+    }
 }
 
 
