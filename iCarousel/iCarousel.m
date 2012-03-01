@@ -2038,7 +2038,6 @@ NSComparisonResult compareViewDepth(UIView *view1, UIView *view2, iCarousel *sel
                 [delegate carousel:self currentItemTapped:eventLocation];
             }
         }
-        return;
     }
     
 	if (scrollEnabled)
